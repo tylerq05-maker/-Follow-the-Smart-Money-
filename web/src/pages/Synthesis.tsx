@@ -62,7 +62,9 @@ export function Disagreement() {
           </Card>
           <Card title="Cumulative excess return">{paths.data ? <PathChart rows={paths.data[sel]} dir={es.meta.direction} /> : <Loading />}</Card>
           <Card title="Placebo · same stocks, random dates"><PlaceboChart p={d.placebo[sel]} /></Card>
-          <Card title="Calendar-time portfolio" className="span2">{curves.data ? <CurveChart c={curves.data[sel]} /> : <Loading />}</Card>
+        </div>
+        <div className="grid g2" style={{ marginTop: 14 }}>
+          <Card title="Calendar-time portfolio">{curves.data ? <CurveChart c={curves.data[sel]} /> : <Loading />}</Card>
           <PortfolioCard p={d.portfolios[sel]} sample={sample} />
         </div>
       </Section>
@@ -143,10 +145,10 @@ export function LeadLag() {
       <PageHead kicker="Phase 5 · Synthesis" title="Who moves first — prices, insiders, institutions or the crowd?"
         sub="Event-time profiles show what prices (and attention) did before and after each group's observable action. Day 0 is when the action became public unless stated. These are lead-lag associations: they establish ordering, not causation." />
       <div className="grid g2">
-        {P.insider_cluster_buy && <Profile p={P.insider_cluster_buy} title="Around insider cluster buying" note="Insiders typically buy after a decline (negative drift before day 0). The question is whether the drift reverses after disclosure." />}
-        {P.insider_ceo_cfo_sale && <Profile p={P.insider_ceo_cfo_sale} title="Around discretionary CEO/CFO sales" note="Executives tend to sell after run-ups; the post-filing path tests whether the market under-reacts." />}
-        {P.hf_crowd_buy_vs_quarter && <Profile p={P.hf_crowd_buy_vs_quarter} title="Hedge-fund crowd buying, anchored at QUARTER END" note="Days −63…0 are the quarter in which funds bought; the 13F becomes public ~31 trading days later. Gains before disclosure belong to the funds, not to copycats." marker={31} />}
-        {P.wiki_spike && <Profile p={P.wiki_spike} title="Around Wikipedia attention spikes" note="If the price move happens before day 0, attention follows prices rather than leading them." />}
+        {P.insider_cluster_buy && <Profile p={P.insider_cluster_buy} title="Around insider cluster buying" note="Insiders cluster-buy after steep declines; the question is whether the decline reverses once the purchases are public." />}
+        {P.insider_ceo_cfo_sale && <Profile p={P.insider_ceo_cfo_sale} title="Around discretionary CEO/CFO sales" note="The post-filing path tests whether the market under-reacts to discretionary executive selling." />}
+        {P.hf_crowd_buy_vs_quarter && <Profile p={P.hf_crowd_buy_vs_quarter} title="Hedge-fund crowd buying, anchored at QUARTER END" note="Days −63…0 are the quarter in which funds bought; the 13F becomes public ~31 trading days later. Only moves after that marker were available to someone copying the filing." marker={31} />}
+        {P.wiki_spike && <Profile p={P.wiki_spike} title="Around Wikipedia attention spikes" note="Movement before day 0 means prices moved before attention spiked." />}
       </div>
       {P.attention_around_insider_clusters && <Section title="Does the crowd notice insider buying?">
         <AttentionProfile p={P.attention_around_insider_clusters} />
@@ -168,6 +170,14 @@ export function LeadLag() {
   );
 }
 
+function profileSummary(p: Json, marker?: number) {
+  const at = (day: number) => p.mean[p.days.indexOf(day)];
+  const pre = -(p.mean[0] ?? 0);  // path is anchored at day 0: move from first day to day 0
+  const pivot = marker ?? 0;
+  const post = (p.mean[p.mean.length - 1] ?? 0) - (at(pivot) ?? 0);
+  return <>Measured: <b className={tone(pre)}>{pct(pre, 1)}</b> excess return from day {p.days[0]} to day 0; <b className={tone(post)}>{pct(post, 1)}</b> from day {pivot}{marker ? " (13F public)" : ""} to day {p.days[p.days.length - 1]}.</>;
+}
+
 function Profile({ p, title, note, marker }: { p: Json; title: string; note: string; marker?: number }) {
   const option = useMemo(() => ({
     grid: { left: 56, right: 16, top: 20, bottom: 36 },
@@ -182,7 +192,7 @@ function Profile({ p, title, note, marker }: { p: Json; title: string; note: str
           data: [{ xAxis: String(0), name: "day 0" }, ...(marker ? [{ xAxis: String(marker), name: "13F public" }] : [])] } },
     ],
   }), [p, marker]);
-  return <Card title={title} desc={`Cumulative excess return vs SPY relative to ${p.label} · n=${int(p.n)}`}><Chart option={option} height={250} /><div className="dim" style={{ fontSize: 11.5, marginTop: 6 }}>{note}</div></Card>;
+  return <Card title={title} desc={`Cumulative excess return vs SPY relative to ${p.label} · n=${int(p.n)}`}><Chart option={option} height={250} /><div style={{ fontSize: 12, marginTop: 6 }}>{profileSummary(p, marker)}</div><div className="dim" style={{ fontSize: 11.5, marginTop: 4 }}>{note}</div></Card>;
 }
 
 function AttentionProfile({ p }: { p: Json }) {
@@ -192,7 +202,7 @@ function AttentionProfile({ p }: { p: Json }) {
     yAxis: { type: "value", ...axis({ axisLabel: { color: C.dim, formatter: (v: number) => `${num(Math.exp(v), 2)}x` } }) },
     series: [{ type: "bar", data: p.mean, itemStyle: { color: C.violet } }],
   }), [p]);
-  return <Card desc={`Mean log(views / pre-event median) around ${int(p.n)} insider cluster-buy filings. A bump after day 0 means the crowd reacts to insiders; before day 0, insiders act on news the crowd already saw.`}><Chart option={option} height={220} /></Card>;
+  return <Card desc={`Mean log(views / pre-event median) around ${int(p.n)} insider cluster-buy filings. A sustained bump after day 0 would mean the crowd reacts to insider buying. The regular saw-tooth is the normal weekday/weekend traffic cycle, not a signal.`}><Chart option={option} height={220} /></Card>;
 }
 
 function XCorr({ ar }: { ar: Json }) {

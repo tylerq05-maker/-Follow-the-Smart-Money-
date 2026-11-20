@@ -243,7 +243,7 @@ def attention_return_leadlag(spy: R.Series, max_stocks: int = 800, lags: int = 1
     rng = np.random.default_rng(3)
     tickers = list(rng.choice(tickers, size=min(max_stocks, len(tickers)), replace=False))
     spy_r = pd.Series(spy.adj, index=pd.to_datetime(spy.dates)).pct_change()
-    cc, g_att_ret, g_ret_att, n_ok = [], 0, 0, 0
+    cc, g_att_ret, g_ret_att, n_ok, n_granger = [], 0, 0, 0, 0
     for t in tickers:
         s = R.Series.load(t.replace(".", "-"))
         v = wikipedia.load(t)
@@ -260,19 +260,21 @@ def attention_return_leadlag(spy: R.Series, max_stocks: int = 800, lags: int = 1
         cc.append([df.a.corr(df.r.shift(-k)) for k in range(-lags, lags + 1)])  # k>0: attention today vs return k days later
         try:
             d2 = df[["r", "a"]].values
-            p1 = grangercausalitytests(d2, maxlag=5, verbose=False)[5][0]["ssr_ftest"][1]          # a -> r
-            p2 = grangercausalitytests(d2[:, ::-1], maxlag=5, verbose=False)[5][0]["ssr_ftest"][1]  # r -> a
+            p1 = grangercausalitytests(d2, maxlag=5)[5][0]["ssr_ftest"][1]          # a -> r
+            p2 = grangercausalitytests(d2[:, ::-1], maxlag=5)[5][0]["ssr_ftest"][1]  # r -> a
             g_att_ret += p1 < 0.05
             g_ret_att += p2 < 0.05
-        except Exception:
-            pass
+            n_granger += 1
+        except (ValueError, np.linalg.LinAlgError) as e:  # degenerate series only; anything else must surface
+            log.warning("granger skipped for %s: %s", t, e)
     C = np.array(cc)
     return {"n_stocks": n_ok, "lags": list(range(-lags, lags + 1)),
             "mean_corr": [E._f(x) for x in np.nanmean(C, 0)], "median_corr": [E._f(x) for x in np.nanmedian(C, 0)],
             "ci": [[E._f(a), E._f(b)] for a, b in zip(np.nanmean(C, 0) - 1.96 * np.nanstd(C, 0) / np.sqrt(len(C)),
                                                      np.nanmean(C, 0) + 1.96 * np.nanstd(C, 0) / np.sqrt(len(C)))],
-            "granger": {"attention_causes_returns_share": E._f(g_att_ret / max(n_ok, 1)),
-                        "returns_cause_attention_share": E._f(g_ret_att / max(n_ok, 1)), "null_rate": 0.05, "maxlag": 5},
+            "granger": {"attention_causes_returns_share": E._f(g_att_ret / max(n_granger, 1)),
+                        "returns_cause_attention_share": E._f(g_ret_att / max(n_granger, 1)), "null_rate": 0.05, "maxlag": 5,
+                        "n_tested": n_granger},
             "interpretation_note": "Lag k > 0 correlates today's abnormal attention with the abnormal return k trading days later "
                                    "(attention leads); k < 0 means returns lead attention. Granger shares are compared with the 5% "
                                    "expected under no predictability; 'Granger causality' is predictive precedence, not causation."}

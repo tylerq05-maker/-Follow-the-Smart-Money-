@@ -27,7 +27,7 @@ export default function Crowd() {
         sub="Daily English-Wikipedia page views for every NYSE/Nasdaq company with an article, 2016 onward. Attention is not sentiment: a spike says people are looking, not that they are buying — so the generic spike signal has no assumed direction and is tested two-sided."
         right={<Seg value={sample} options={SAMPLES} onChange={setSample} />} />
       <div className="grid g4">
-        <Stat label="Companies tracked" value={int(cov.tickers_with_views)} foot={`${int(cov.wikidata_mappings)} ticker→article links from Wikidata`} />
+        <Stat label="Companies with page views" value={int(cov.tickers_downloaded)} foot={`of ${int(cov.wikidata_mappings)} Wikidata links · ${int(cov.tickers_with_events)} ever cross a threshold`} />
         <Stat label="Attention-spike days" value={int(cov.spike_days)} foot={`≥ ${d.config.spike_ratio}x the ${d.config.baseline_days}-day median, ≥ ${int(d.config.spike_min_views)} views`} />
         <Stat label="GameStop peak (known answer)" value={d.known_answers.gme_2021 ? `${num(d.known_answers.gme_2021.ratio, 0)}x` : "—"} foot={d.known_answers.gme_2021 ? `${int(d.known_answers.gme_2021.peak_views)} views on ${d.known_answers.gme_2021.peak_day}` : ""} />
         <Stat label="Timing" value="d + 1" foot="views for a UTC day count as public the next day" />

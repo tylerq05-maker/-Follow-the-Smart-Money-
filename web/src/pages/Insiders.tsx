@@ -230,9 +230,9 @@ export function CurveChart({ c }: { c: Json }) {
     xAxis: { type: "category", data: c.dates, ...axis({ splitLine: { show: false } }) },
     yAxis: { type: "log", logBase: 2, ...axis({ axisLabel: { color: C.dim, formatter: (v: number) => `${v.toFixed(1)}x` } }) },
     series: [
-      { name: "Signal (net)", type: "line", data: c.signal, symbol: "none", lineStyle: { color: C.gold, width: 2 } },
-      { name: "SPY", type: "line", data: c.spy, symbol: "none", lineStyle: { color: C.blue, width: 1.3 } },
-      { name: "IWM (small caps)", type: "line", data: c.iwm, symbol: "none", lineStyle: { color: C.gray, width: 1.3 } },
+      { name: "Signal (net)", type: "line", itemStyle: { color: C.gold }, data: c.signal, symbol: "none", lineStyle: { color: C.gold, width: 2 } },
+      { name: "SPY", type: "line", itemStyle: { color: C.blue }, data: c.spy, symbol: "none", lineStyle: { color: C.blue, width: 1.3 } },
+      { name: "IWM (small caps)", type: "line", itemStyle: { color: C.gray }, data: c.iwm, symbol: "none", lineStyle: { color: C.gray, width: 1.3 } },
     ],
   }), [c]);
   if (!c) return <div className="empty">No portfolio.</div>;
@@ -250,7 +250,7 @@ export function PortfolioCard({ p, sample }: { p: Json; sample: Sample }) {
   ];
   return (
     <Card title="Portfolio statistics & factor attribution" desc={`Avg ${num(p.avg_holdings, 0)} holdings · turnover ${num(p.annual_turnover, 1)}x/yr · cost drag ${pct(p.avg_cost_drag, 1, false)}/yr · ${pct(p.pct_days_lt5_holdings, 0, false)} of days with <5 names`}>
-      <div className="grid g2" style={{ gap: 18 }}>
+      <div className="grid" style={{ gap: 18, gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>
         <table className="t"><thead><tr><th></th><th className="r">Gross</th><th className="r">Net</th></tr></thead>
           <tbody>{rows.map(([a, b, c]) => <tr key={a}><td className="muted">{a}</td><td className="r num">{b}</td><td className="r num">{c}</td></tr>)}</tbody></table>
         <div>

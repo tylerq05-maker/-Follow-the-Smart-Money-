@@ -115,6 +115,7 @@ export default function Overview() {
         </Section>
 
         <InstFindings />
+        <CrossFindings />
         <Section title="Signal vs. its own baseline">
           <Card desc="Gold: mean 60-day excess return vs SPY after the signal. Grey: the same stocks on random dates. The gap, not the gold bar alone, is the information content of insider timing.">
             <Chart option={chart} height={440} />
@@ -146,6 +147,38 @@ function InstFindings() {
     <Section title="Phase 2 findings · institutional investors (13F)">
       <Card desc="Generated from the institutional results; see Institutional Holdings for every number.">
         {items.map((f, i) => <div className="finding" key={i}><div className="n">{String(i + 8).padStart(2, "0")}</div><div><div className="h">{f.h}</div><div className="b">{f.b}</div></div></div>)}
+      </Card>
+    </Section>
+  );
+}
+
+/** Phase 3 + 5 findings, generated from the crowd and synthesis results. */
+function CrossFindings() {
+  const c = useApi("/api/crowd/summary");
+  const x = useApi("/api/synthesis/summary");
+  const C_: Json = c.data, X: Json = x.data;
+  if (!C_ || !X) return null;
+  const sigCrowd = Object.entries(C_.portfolios).filter(([, v]: [string, Json]) => Math.abs(v.full?.ff6?.alpha_t ?? 0) >= 1.96).length;
+  const sp = C_.event_study.WIKI_SPIKE.full["60"], ra = C_.event_study.WIKI_SPIKE_RALLY?.full["60"];
+  const g = X.who_moves_first.attention_returns.granger;
+  const hr = Object.fromEntries(X.horse_race.full.coefficients.map((k: Json) => [k.name, k]));
+  const hro = Object.fromEntries(X.horse_race.out_of_sample.coefficients.map((k: Json) => [k.name, k]));
+  const ab = X.event_study.ALIGNED_BULL?.full["60"], abf = X.portfolios.ALIGNED_BULL?.full?.ff6;
+  const LABEL: Record<string, string> = { insiders_buying: "insider buying", insiders_selling: "insider selling", inst_accumulating: "institutional accumulation",
+    inst_distributing: "institutional distribution", attention_high: "high crowd attention", attention_low: "low crowd attention" };
+  const top = [...X.horse_race.full.coefficients].sort((a: Json, b: Json) => Math.abs(b.t ?? 0) - Math.abs(a.t ?? 0))[0];
+  const items = [
+    { h: "Crowd attention does not predict returns — prices lead attention.",
+      b: <>Wikipedia attention spikes are followed by a {pct(sp.mean, 2)} 60-day excess return (t = {num(sp.t)}); {sigCrowd === 0 ? "no" : sigCrowd} attention signal{sigCrowd === 1 ? " has" : "s have"} a significant net factor alpha.{ra ? <> Spikes after rallies show the meme-stock signature: mean {pct(ra.mean, 1)}, median {pct(ra.median, 1)}.</> : null} In Granger tests, returns predict attention in {pct(g.returns_cause_attention_share, 0, false)} of stocks vs. attention predicting returns in {pct(g.attention_causes_returns_share, 0, false)} (5% expected by chance).</> },
+    { h: `When the groups are compared head-to-head, ${LABEL[top.name] ?? top.name} has the strongest incremental association (|t| = ${num(Math.abs(top.t ?? 0))}${Math.abs(top.t ?? 0) >= 1.96 ? "" : ", not significant"}).`,
+      b: <>Holding the other groups' states fixed, insider buying is associated with <b className={tone(hr.insiders_buying.coef)}>{pct(hr.insiders_buying.coef, 2)}</b> extra 60-day return (t = {num(hr.insiders_buying.t)}; out-of-sample {pct(hro.insiders_buying.coef, 2)}, t = {num(hro.insiders_buying.t)}), institutional accumulation {pct(hr.inst_accumulating.coef, 2)} (t = {num(hr.inst_accumulating.t)}), and high crowd attention {pct(hr.attention_high.coef, 2)} (t = {num(hr.attention_high.t)}).</> },
+    { h: "Agreement between insiders and institutions does not create an edge.",
+      b: <>When insiders buy and institutions accumulate at the same time ({int(ab?.n)} cases), the 60-day excess return is {pct(ab?.mean, 2)} (t = {num(ab?.t)}) and the net factor alpha {pct(abf?.alpha_ann, 1)}/yr (t = {num(abf?.alpha_t)}). Combining two weak signals did not make a strong one.</> },
+  ];
+  return (
+    <Section title="Phase 3 & 5 findings · the crowd, and the groups compared">
+      <Card desc="Generated from the crowd and synthesis results; see Crowd Attention, Disagreement Engine and Who Moves First?">
+        {items.map((f, i) => <div className="finding" key={i}><div className="n">{String(i + 10).padStart(2, "0")}</div><div><div className="h">{f.h}</div><div className="b">{f.b}</div></div></div>)}
       </Card>
     </Section>
   );

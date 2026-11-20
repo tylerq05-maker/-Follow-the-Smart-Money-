@@ -1,9 +1,9 @@
 {
- "generated": "2026-11-20T16:27:12",
+ "generated": "2026-11-20T21:10:25",
  "tests": {
   "exit_code": 0,
   "counts": {
-   "passed": 42
+   "passed": 51
   },
   "tests": [
    {
@@ -81,133 +81,196 @@
     "name": "test_exclusion_reasons[kw0-]",
     "status": "passed",
     "message": null,
-    "seconds": 0.016
+    "seconds": 0.019
    },
    {
     "module": "test_classify",
     "name": "test_exclusion_reasons[kw1-not_open_market_trade]",
     "status": "passed",
     "message": null,
-    "seconds": 0.009
+    "seconds": 0.012
    },
    {
     "module": "test_classify",
     "name": "test_exclusion_reasons[kw2-not_open_market_trade]",
     "status": "passed",
     "message": null,
-    "seconds": 0.009
+    "seconds": 0.011
    },
    {
     "module": "test_classify",
     "name": "test_exclusion_reasons[kw3-not_open_market_trade]",
     "status": "passed",
     "message": null,
-    "seconds": 0.009
+    "seconds": 0.011
    },
    {
     "module": "test_classify",
     "name": "test_exclusion_reasons[kw4-amendment_or_form5]",
     "status": "passed",
     "message": null,
-    "seconds": 0.009
+    "seconds": 0.011
    },
    {
     "module": "test_classify",
     "name": "test_exclusion_reasons[kw5-non_common_security]",
     "status": "passed",
     "message": null,
-    "seconds": 0.009
+    "seconds": 0.012
    },
    {
     "module": "test_classify",
     "name": "test_exclusion_reasons[kw6-missing_price_or_shares]",
     "status": "passed",
     "message": null,
-    "seconds": 0.009
+    "seconds": 0.011
    },
    {
     "module": "test_classify",
     "name": "test_exclusion_reasons[kw7-drip_espp_plan]",
     "status": "passed",
     "message": null,
-    "seconds": 0.009
+    "seconds": 0.011
    },
    {
     "module": "test_classify",
     "name": "test_exclusion_reasons[kw8-offering_private_placement]",
     "status": "passed",
     "message": null,
-    "seconds": 0.009
+    "seconds": 0.011
    },
    {
     "module": "test_classify",
     "name": "test_exclusion_reasons[kw9-rule_10b5_1_plan]",
     "status": "passed",
     "message": null,
-    "seconds": 0.009
+    "seconds": 0.014
    },
    {
     "module": "test_classify",
     "name": "test_exclusion_reasons[kw10-invalid_dates]",
     "status": "passed",
     "message": null,
-    "seconds": 0.009
+    "seconds": 0.011
    },
    {
     "module": "test_classify",
     "name": "test_exclusion_reasons[kw11-inconsistent_direction]",
     "status": "passed",
     "message": null,
-    "seconds": 0.009
+    "seconds": 0.011
    },
    {
     "module": "test_classify",
     "name": "test_late_filing_and_value",
     "status": "passed",
     "message": null,
-    "seconds": 0.009
+    "seconds": 0.011
    },
    {
     "module": "test_classify",
     "name": "test_dedupe_keeps_distinct_directors_removes_echoes",
     "status": "passed",
     "message": null,
-    "seconds": 0.016
+    "seconds": 0.019
+   },
+   {
+    "module": "test_crowd",
+    "name": "test_gamestop_january_2021_attention_spike",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.02
+   },
+   {
+    "module": "test_crowd",
+    "name": "test_attention_is_public_the_next_day",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.012
    },
    {
     "module": "test_form4_parser",
     "name": "test_parse_fields",
     "status": "passed",
     "message": null,
-    "seconds": 0.004
+    "seconds": 0.005
    },
    {
     "module": "test_form4_parser",
     "name": "test_classification_of_parsed_filing",
     "status": "passed",
     "message": null,
-    "seconds": 0.011
+    "seconds": 0.014
+   },
+   {
+    "module": "test_institutions",
+    "name": "test_deadline_is_45_days_rolled_to_business_day",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.001
+   },
+   {
+    "module": "test_institutions",
+    "name": "test_name_normalisation",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.0
+   },
+   {
+    "module": "test_institutions",
+    "name": "test_berkshire_apple_known_answer",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.124
+   },
+   {
+    "module": "test_institutions",
+    "name": "test_value_units_consistent_across_2023_switch",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.323
+   },
+   {
+    "module": "test_institutions",
+    "name": "test_cusip_map_verified",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.013
+   },
+   {
+    "module": "test_institutions",
+    "name": "test_split_does_not_look_like_buying",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.035
+   },
+   {
+    "module": "test_institutions",
+    "name": "test_signals_are_dated_after_disclosure",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.093
    },
    {
     "module": "test_known_answers",
     "name": "test_dimon_jpm_purchase_feb_2016",
     "status": "passed",
     "message": null,
-    "seconds": 0.488
+    "seconds": 0.361
    },
    {
     "module": "test_known_answers",
     "name": "test_berkshire_oxy_accumulation_2022",
     "status": "passed",
     "message": null,
-    "seconds": 0.349
+    "seconds": 0.345
    },
    {
     "module": "test_known_answers",
     "name": "test_10b5_1_sales_are_flagged_after_2023_rule",
     "status": "passed",
     "message": null,
-    "seconds": 0.082
+    "seconds": 0.071
    },
    {
     "module": "test_lookahead",
@@ -221,7 +284,7 @@
     "name": "test_trader_type_uses_prior_years_only",
     "status": "passed",
     "message": null,
-    "seconds": 0.002
+    "seconds": 0.003
    },
    {
     "module": "test_lookahead",
@@ -235,14 +298,14 @@
     "name": "test_signal_events_respect_disclosure_timing",
     "status": "passed",
     "message": null,
-    "seconds": 0.085
+    "seconds": 0.09
    },
    {
     "module": "test_lookahead",
     "name": "test_cluster_counts_recomputed_from_raw_filings",
     "status": "passed",
     "message": null,
-    "seconds": 0.194
+    "seconds": 0.15
    },
    {
     "module": "test_returns",
@@ -284,7 +347,7 @@
     "name": "test_bootstrap_ci_brackets_mean",
     "status": "passed",
     "message": null,
-    "seconds": 0.003
+    "seconds": 0.002
    },
    {
     "module": "test_stats",

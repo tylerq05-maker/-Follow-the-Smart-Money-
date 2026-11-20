@@ -42,6 +42,12 @@ export default function Chart({ option, height = 280 }: { option: object; height
     ro.observe(ref.current);
     return () => { ro.disconnect(); inst.current?.dispose(); };
   }, []);
-  useEffect(() => { inst.current?.setOption({ ...baseOption, ...option }, true); }, [option]);
+  useEffect(() => {
+    // Legends take their swatch from itemStyle; mirror lineStyle colours so legends always match the lines.
+    const o = option as { series?: Record<string, any>[] };  // eslint-disable-line @typescript-eslint/no-explicit-any
+    const series = o.series?.map((s) => (s.type === "line" && s.lineStyle?.color && !s.itemStyle?.color
+      ? { ...s, itemStyle: { ...(s.itemStyle ?? {}), color: s.lineStyle.color } } : s));
+    inst.current?.setOption({ ...baseOption, ...option, ...(series ? { series } : {}) }, true);
+  }, [option]);
   return <div ref={ref} style={{ height, width: "100%" }} />;
 }

@@ -6,12 +6,12 @@ An institutional-style research platform that tests the question on look-ahead-f
 
 | Phase | Source | Status |
 |---|---|---|
-| 1 | Corporate insiders (SEC Form 4) | **Complete**: ingestion, classification, signals, event study, placebo, factor-adjusted portfolios, dashboard, validation |
-| 2 | Institutions (SEC Form 13F) | Planned |
-| 3 | Reddit · Wikipedia | Planned |
-| 4 | News · Google Trends | Planned |
-| 5 | Disagreement engine · lead-lag · combined backtests | Planned |
-| 6 | AI research summaries · final polish | Planned |
+| 1 | Corporate insiders (SEC Form 4) | **Complete** |
+| 2 | Institutions (SEC Form 13F) | **Complete** |
+| 3 | The crowd: Wikipedia attention | **Complete** (Reddit blocked from the build environment, see below) |
+| 4 | News · Google Trends | **Blocked**: GDELT and Google Trends are unreachable from the build environment |
+| 5 | Disagreement engine · Who moves first? · cross-source scoreboard | **Complete** |
+| 6 | AI research summaries | Needs an `ANTHROPIC_API_KEY`; all current text is computed deterministically |
 
 ## Phase 1 headline results (2012–2026, investable universe)
 
@@ -24,6 +24,14 @@ All figures are produced by `python -m smartmoney.pipeline insiders` and shown l
 * **Look-ahead bias is real.** 79% of Form 4s from large issuers are accepted *after* the 4 pm close yet carry that day's filing date. A naive same-day entry books a spurious +1.2% day-one return.
 * **Combining features overfits.** In-sample-fitted weights flip sign out-of-sample. The platform reports this instead of hiding it.
 
+## Phases 2–5 headline results
+
+* **Copying 13F filings does not work.** None of the 5 bullish 13F signals earns a significantly positive net factor alpha, and all 5 do worse than the same stocks on random dates. The median manager files 41 days after quarter end.
+* **What hedge funds collectively dump keeps falling.** Stocks that 3 or more concentrated managers exit or cut have a net FF5+momentum alpha of −6.6%/yr (t = −3.1), and −6.2%/yr out of sample (t = −2.2). "Concentrated" means ETF-heavy advisers and strategic holders are excluded.
+* **Crowd attention does not predict returns. Prices lead attention.** No Wikipedia-attention signal has significant alpha. In Granger tests, returns predict attention in 17% of stocks, versus 9% the other way (5% expected by chance).
+* **Disagreement engine.** Holding all three groups' states fixed, insider buying has the strongest incremental association with later returns (+1.1% per 60 days, t = 2.1; out of sample t = 1.8). Insiders and institutions *agreeing* adds no edge.
+* **Who moves first?** Insiders cluster-buy after steep declines (about −22% excess over the prior 60 days). Hedge-fund crowd buys happen in stocks that lagged during the quarter, and they drift up only after the 13F is public.
+
 ## Methodology in one paragraph
 
 Historical Form 3/4/5 data comes from the SEC's own structured datasets (2009Q1–2026Q3, 2.2M open-market trades). Filings too recent for the bulk datasets are parsed live from EDGAR XML. Each trade is classified: grants, exercises, tax withholding, gifts, 10b5-1 plans, DRIP/ESPP purchases and offering purchases are separated from discretionary open-market trades, and every exclusion gets a reason code. Events are keyed on the **filing date**. Entry is the **close of the next trading day**, and every window feature uses only filings dated on or before the event. CIK→ticker mappings are verified against the prices insiders reported paying, which rejects 409 reused or wrong tickers. Returns are dividend-adjusted and measured against SPY over identical dates. Inference uses month-clustered standard errors, cluster bootstrap confidence intervals, Holm correction, a 200-draw same-stock random-date placebo, and calendar-time portfolios with tiered transaction costs regressed on FF5 + momentum (Newey-West). The sample is split in-sample (2012–2018) and out-of-sample (2019+).
@@ -35,7 +43,7 @@ The full methodology, the quality funnel, survivorship accounting and the test r
 ```bash
 pip install -r requirements.txt
 cp .env.example .env            # set SEC_USER_AGENT to your name + email (SEC fair-access policy)
-python -m smartmoney.pipeline all       # ~25 min: SEC bulk data, prices, research (≈1 GB raw data)
+python -m smartmoney.pipeline all       # SEC Form 4 + 13F (~5 GB raw), prices, Wikipedia, all research
 python -m smartmoney.validate           # tests + live cross-checks against EDGAR
 cd web && npm install && npm run build && cd ..
 uvicorn smartmoney.api.app:app --port 8000   # open http://localhost:8000
@@ -59,6 +67,10 @@ data/results/   research outputs consumed by the UI (committed; raw/processed da
 tests/          unit, look-ahead, known-answer (Dimon/JPM 2016, Berkshire/OXY 2022) tests
 docs/DEVLOG.md  development log and decisions
 ```
+
+## Data access in the build environment
+
+Reddit's API returns 403, PullPush refuses automated agents, and the Arctic Shift archive's post search times out, so no Reddit data is used. GDELT and Google Trends do not respond. Wikimedia throttles the shared IP, and 77% of mapped companies' page views were fetched; the unfetched tail of Wikidata's arbitrary ordering is equal across exchanges, and `python -m smartmoney.pipeline wiki` resumes. Nothing is simulated in place of a missing source.
 
 ## Limitations
 

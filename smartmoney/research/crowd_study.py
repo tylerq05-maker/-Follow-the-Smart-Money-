@@ -149,7 +149,11 @@ def run() -> None:
                     for s in SIGNALS],
         "event_study": study, "placebo": E.placebo_test(se, placebo, REGISTRY), "portfolios": pstats,
         "robustness_grid": grid, "robust_all_priced": {},
-        "coverage": {"wikidata_mappings": int(len(wm)), "tickers_with_views": int(ev.ticker.nunique()),
+        "coverage": {"wikidata_mappings": int(len(wm)),
+                     "tickers_downloaded": int(sum((config.RAW / "wiki" / f"{t}.parquet").exists() for t in wm.ticker)),
+                     "tickers_with_events": int(ev.ticker.nunique()),
+                     "note": "Pageviews are fetched from a throttled API; coverage below 100% is the unfetched tail of an "
+                             "arbitrary Wikidata ordering (equal by exchange). Companies below the view thresholds never trigger.",
                      "spike_days": int((ev.kind == "spike").sum()), "rising_days": int((ev.kind == "rising").sum()),
                      "investable_share": float(ev.investable.mean())},
         "known_answers": known_answers(),
