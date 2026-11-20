@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+*.egg-info/
+
+# Data: raw and processed data are reproducible from the pipeline and too large for git.
+# Research outputs consumed by the UI (data/results) ARE committed.
+data/raw/
+data/processed/
+data/cache/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Frontend
+web/node_modules/
+web/dist/
+*.log

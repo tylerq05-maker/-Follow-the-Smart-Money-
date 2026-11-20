@@ -1,0 +1,425 @@
+{
+ "generated": "2026-11-20T16:27:12",
+ "tests": {
+  "exit_code": 0,
+  "counts": {
+   "passed": 42
+  },
+  "tests": [
+   {
+    "module": "test_classify",
+    "name": "test_titles[President and CEO-True-False]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.001
+   },
+   {
+    "module": "test_classify",
+    "name": "test_titles[Chairman & CEO-True-False]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.0
+   },
+   {
+    "module": "test_classify",
+    "name": "test_titles[CEO CIB-False-False]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.0
+   },
+   {
+    "module": "test_classify",
+    "name": "test_titles[CEO, Consumer & Community Banking-False-False]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.0
+   },
+   {
+    "module": "test_classify",
+    "name": "test_titles[EVP & CFO-False-True]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.0
+   },
+   {
+    "module": "test_classify",
+    "name": "test_titles[SVP, CFO and Treasurer-False-True]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.0
+   },
+   {
+    "module": "test_classify",
+    "name": "test_titles[Chief Accounting Officer-False-False]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.0
+   },
+   {
+    "module": "test_classify",
+    "name": "test_titles[Co-CEO-True-False]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.0
+   },
+   {
+    "module": "test_classify",
+    "name": "test_titles[CFO, Americas-False-False]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.0
+   },
+   {
+    "module": "test_classify",
+    "name": "test_titles[Director-False-False]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.0
+   },
+   {
+    "module": "test_classify",
+    "name": "test_exclusion_reasons[kw0-]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.016
+   },
+   {
+    "module": "test_classify",
+    "name": "test_exclusion_reasons[kw1-not_open_market_trade]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.009
+   },
+   {
+    "module": "test_classify",
+    "name": "test_exclusion_reasons[kw2-not_open_market_trade]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.009
+   },
+   {
+    "module": "test_classify",
+    "name": "test_exclusion_reasons[kw3-not_open_market_trade]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.009
+   },
+   {
+    "module": "test_classify",
+    "name": "test_exclusion_reasons[kw4-amendment_or_form5]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.009
+   },
+   {
+    "module": "test_classify",
+    "name": "test_exclusion_reasons[kw5-non_common_security]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.009
+   },
+   {
+    "module": "test_classify",
+    "name": "test_exclusion_reasons[kw6-missing_price_or_shares]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.009
+   },
+   {
+    "module": "test_classify",
+    "name": "test_exclusion_reasons[kw7-drip_espp_plan]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.009
+   },
+   {
+    "module": "test_classify",
+    "name": "test_exclusion_reasons[kw8-offering_private_placement]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.009
+   },
+   {
+    "module": "test_classify",
+    "name": "test_exclusion_reasons[kw9-rule_10b5_1_plan]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.009
+   },
+   {
+    "module": "test_classify",
+    "name": "test_exclusion_reasons[kw10-invalid_dates]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.009
+   },
+   {
+    "module": "test_classify",
+    "name": "test_exclusion_reasons[kw11-inconsistent_direction]",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.009
+   },
+   {
+    "module": "test_classify",
+    "name": "test_late_filing_and_value",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.009
+   },
+   {
+    "module": "test_classify",
+    "name": "test_dedupe_keeps_distinct_directors_removes_echoes",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.016
+   },
+   {
+    "module": "test_form4_parser",
+    "name": "test_parse_fields",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.004
+   },
+   {
+    "module": "test_form4_parser",
+    "name": "test_classification_of_parsed_filing",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.011
+   },
+   {
+    "module": "test_known_answers",
+    "name": "test_dimon_jpm_purchase_feb_2016",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.488
+   },
+   {
+    "module": "test_known_answers",
+    "name": "test_berkshire_oxy_accumulation_2022",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.349
+   },
+   {
+    "module": "test_known_answers",
+    "name": "test_10b5_1_sales_are_flagged_after_2023_rule",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.082
+   },
+   {
+    "module": "test_lookahead",
+    "name": "test_rolling_window_excludes_future_filings",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.0
+   },
+   {
+    "module": "test_lookahead",
+    "name": "test_trader_type_uses_prior_years_only",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.002
+   },
+   {
+    "module": "test_lookahead",
+    "name": "test_cooldown",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.001
+   },
+   {
+    "module": "test_lookahead",
+    "name": "test_signal_events_respect_disclosure_timing",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.085
+   },
+   {
+    "module": "test_lookahead",
+    "name": "test_cluster_counts_recomputed_from_raw_filings",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.194
+   },
+   {
+    "module": "test_returns",
+    "name": "test_entry_is_first_trading_day_after_filing",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.004
+   },
+   {
+    "module": "test_returns",
+    "name": "test_not_matured_vs_truncated",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.003
+   },
+   {
+    "module": "test_returns",
+    "name": "test_prior_return_uses_only_signal_day_and_before",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.003
+   },
+   {
+    "module": "test_returns",
+    "name": "test_split_factor_and_bad_ticks",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.002
+   },
+   {
+    "module": "test_stats",
+    "name": "test_clustered_mean_matches_statsmodels",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.001
+   },
+   {
+    "module": "test_stats",
+    "name": "test_bootstrap_ci_brackets_mean",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.003
+   },
+   {
+    "module": "test_stats",
+    "name": "test_holm",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.0
+   },
+   {
+    "module": "test_stats",
+    "name": "test_newey_west_recovers_coefficients",
+    "status": "passed",
+    "message": null,
+    "seconds": 0.001
+   }
+  ]
+ },
+ "xml_vs_bulk": {
+  "quarter": "2026q2",
+  "filings_sampled": 60,
+  "filings_checked": 60,
+  "transactions_compared": 136,
+  "fields": [
+   "trans_code",
+   "shares",
+   "price",
+   "trans_date",
+   "acq_disp",
+   "shares_after"
+  ],
+  "field_comparisons": 816,
+  "mismatches": [
+   {
+    "accession": "0001435109-26-000096",
+    "field": "shares_after",
+    "bulk": "3385.64",
+    "xml": "3385.6449"
+   }
+  ],
+  "n_mismatches": 1,
+  "n_rounding_differences": 14,
+  "rounding_examples": [
+   {
+    "accession": "0001193125-26-272629",
+    "field": "price",
+    "bulk": "38.82",
+    "xml": "38.823"
+   },
+   {
+    "accession": "0001963980-26-000008",
+    "field": "price",
+    "bulk": "27.28",
+    "xml": "27.2778"
+   },
+   {
+    "accession": "0001963980-26-000008",
+    "field": "price",
+    "bulk": "27.82",
+    "xml": "27.8174"
+   },
+   {
+    "accession": "0001610717-26-000293",
+    "field": "price",
+    "bulk": "33.29",
+    "xml": "33.289"
+   },
+   {
+    "accession": "0001610717-26-000293",
+    "field": "price",
+    "bulk": "34.28",
+    "xml": "34.2815"
+   },
+   {
+    "accession": "0001610717-26-000293",
+    "field": "price",
+    "bulk": "35.32",
+    "xml": "35.3159"
+   },
+   {
+    "accession": "0001610717-26-000293",
+    "field": "price",
+    "bulk": "36.16",
+    "xml": "36.1646"
+   },
+   {
+    "accession": "0001810417-26-000006",
+    "field": "price",
+    "bulk": "15.86",
+    "xml": "15.858"
+   },
+   {
+    "accession": "0001810417-26-000006",
+    "field": "price",
+    "bulk": "16.83",
+    "xml": "16.8259"
+   },
+   {
+    "accession": "0001810417-26-000006",
+    "field": "price",
+    "bulk": "17.02",
+    "xml": "17.0247"
+   }
+  ],
+  "note": "SEC bulk data rounds prices to cents; differences < $0.006 are counted as rounding, not errors.",
+  "agreement": 0.9987745098039216
+ },
+ "acceptance_timing": {
+  "n_filings": 13845,
+  "issuers": 25,
+  "share_after_close_same_filing_date": 0.7875767425063199,
+  "share_before_open": 0.01292885518237631,
+  "share_during_session": 0.19949440231130372,
+  "share_after_close": 0.7875767425063199,
+  "hour_histogram": {
+   "6": 44,
+   "7": 6,
+   "8": 71,
+   "9": 148,
+   "10": 212,
+   "11": 316,
+   "12": 418,
+   "13": 517,
+   "14": 596,
+   "15": 613,
+   "16": 3547,
+   "17": 2525,
+   "18": 2716,
+   "19": 889,
+   "20": 743,
+   "21": 482,
+   "22": 2
+  },
+  "period": [
+   "2015-04-06",
+   "2026-11-19"
+  ]
+ }
+}
