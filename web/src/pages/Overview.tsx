@@ -104,8 +104,9 @@ export default function Overview() {
                 <div className="dim" style={{ marginTop: 10, fontSize: 11.5 }}>Survivorship caveat: {pct(1 - d.coverage.buy_events_priced / d.coverage.buy_events_total, 0, false)} of buy events are in companies without free price history (mostly delisted). See Methodology.</div>
               </Card>
               <Card title="Research roadmap">
-                {[["Corporate insiders", "Form 4", "Complete", "live"], ["Institutions", "Form 13F", "Phase 2", ""], ["Reddit · Wikipedia", "Crowd", "Phase 3", ""],
-                  ["News · Google Trends", "Crowd", "Phase 4", ""], ["Disagreement · Lead-lag", "Synthesis", "Phase 5", ""]].map(([a, b, c, t]) => (
+                {[["Corporate insiders", "Form 4", "Complete", "live"], ["Institutions", "Form 13F", "Complete", "live"], ["Wikipedia attention", "Crowd", "Complete", "live"],
+                  ["Reddit", "Crowd", "Blocked (API 403)", ""], ["News · Google Trends", "Crowd", "Blocked (unreachable)", ""],
+                  ["Disagreement · Lead-lag", "Synthesis", "Complete", "live"], ["AI summaries", "Phase 6", "Needs API key", ""]].map(([a, b, c, t]) => (
                   <div key={a} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--line)" }}>
                     <span>{a} <span className="dim">· {b}</span></span><span className={`tag ${t}`}>{c}</span></div>))}
               </Card>
@@ -113,6 +114,7 @@ export default function Overview() {
           </div>
         </Section>
 
+        <InstFindings />
         <Section title="Signal vs. its own baseline">
           <Card desc="Gold: mean 60-day excess return vs SPY after the signal. Grey: the same stocks on random dates. The gap, not the gold bar alone, is the information content of insider timing.">
             <Chart option={chart} height={440} />
@@ -121,5 +123,30 @@ export default function Overview() {
         </Section>
       </>}
     </div>
+  );
+}
+
+/** Phase 2 findings, generated from the institutional results. */
+function InstFindings() {
+  const r = useApi("/api/institutions/summary");
+  const d: Json = r.data;
+  if (!d) return null;
+  const ff = (k: string, smp = "full") => d.portfolios[k]?.[smp]?.ff6;
+  const bulls = d.signals.filter((s: Json) => s.direction > 0).map((s: Json) => s.key);
+  const posFF = bulls.filter((k: string) => (ff(k)?.alpha_t ?? 0) >= 1.96).length;
+  const belowPlacebo = bulls.filter((k: string) => (d.placebo[k]?.difference ?? 0) < 0).length;
+  const sell = ff("HF_CROWD_SELL"), sellO = ff("HF_CROWD_SELL", "out_of_sample");
+  const items = [
+    { h: "Copying 13F filings after disclosure does not earn alpha.",
+      b: <>{posFF === 0 ? "None" : posFF} of {bulls.length} bullish 13F signals earn a significantly positive net factor alpha; {belowPlacebo} of {bulls.length} do worse than the same stocks on random dates. The median manager files {num(d.coverage.filing_lag_days.median, 0)} days after quarter end — the information is stale by the time it is public.</> },
+    { h: "What hedge funds collectively dump keeps underperforming.",
+      b: <>Stocks that ≥ 3 concentrated managers exit or cut have a net Fama-French 5 + momentum alpha of <b className={tone(sell?.alpha_ann)}>{pct(sell?.alpha_ann, 1)}</b>/yr (t = {num(sell?.alpha_t)}), and {pct(sellO?.alpha_ann, 1)}/yr out-of-sample (t = {num(sellO?.alpha_t)}).</> },
+  ];
+  return (
+    <Section title="Phase 2 findings · institutional investors (13F)">
+      <Card desc="Generated from the institutional results; see Institutional Holdings for every number.">
+        {items.map((f, i) => <div className="finding" key={i}><div className="n">{String(i + 8).padStart(2, "0")}</div><div><div className="h">{f.h}</div><div className="b">{f.b}</div></div></div>)}
+      </Card>
+    </Section>
   );
 }

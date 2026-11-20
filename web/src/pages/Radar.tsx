@@ -145,7 +145,7 @@ function InsiderRead({ ins }: { ins: Json }) {
     label = "Discretionary selling"; cls = "neg";
     text = `${w.sellers} insider${w.sellers === 1 ? "" : "s"} sold ${usd(w.discretionary_sell_value)} outside 10b5-1 plans${w.buy_value ? `; purchases ${usd(w.buy_value)}` : "; no purchases"}.`;
   } else if (w.planned_sell_value > 0) {
-    label = "Planned selling only"; text = `${usd(w.planned_sell_value)} of sales, all under Rule 10b5-1 plans — historically uninformative in this study.`;
+    label = "Planned selling only"; text = `${usd(w.planned_sell_value)} of sales, all under Rule 10b5-1 plans — in this study, plan sales carried little information (no factor alpha; a small same-stock placebo gap).`;
   }
   return (
     <Card title="Insiders" desc="SEC Form 4 · last 180 days" right={<span className={`pill ${cls}`}>{label}</span>}>

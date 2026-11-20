@@ -104,6 +104,7 @@ export default function Methodology() {
         </div>
       </Section>
 
+      <InstMethod />
       <Section title="Independent re-parse of original filings">
         {V?.xml_vs_bulk ? (
           <div className="grid g4">
@@ -178,5 +179,39 @@ export default function Methodology() {
       </Section>
       <div className="dim" style={{ marginTop: 16, fontSize: 11 }}>Methodology references: Seyhun (1986); Lakonishok & Lee (2001); Jenter (2005); Cohen, Malloy & Pomorski (2012); Fama & French (2015). {num(0, 0) && ""}</div>
     </div>
+  );
+}
+
+function InstMethod() {
+  const r = useApi("/api/institutions/summary");
+  const c = useApi("/api/crowd/summary");
+  const d: Json = r.data;
+  if (!d) return null;
+  const cov = d.coverage, rule = d.config.concentrated_rule, m = cov.cusip_mapping;
+  return (
+    <Section title="Institutions (13F) and the crowd · timing and identity">
+      <div className="grid g4">
+        <Stat label="13F reports used" value={int(cov.n_filings)} foot={`${int(cov.n_managers)} managers · ${cov.periods[0]} → ${cov.periods[1]}`} />
+        <Stat label="Filed after the 45-day deadline" value={pct(cov.late_filings_share, 1, false)} foot="excluded from quarter-wide aggregates" />
+        <Stat label="CUSIPs verified by price" value={int((m.name ?? 0) + (m.openfigi ?? 0))} foot={`${int((m.rejected_name ?? 0) + (m.rejected_openfigi ?? 0))} candidate tickers rejected`} />
+        <Stat label="Hedge-fund-like managers / qtr" value={int(cov.concentrated_per_period)} foot={`${rule.min_positions}–${rule.max_positions} positions, top-10 ≥ ${pct(rule.min_top10_weight, 0, false)}, ETFs < ${pct(rule.max_etf_share, 0, false)}`} />
+      </div>
+      <div className="grid g2" style={{ marginTop: 14 }}>
+        <Card title="13F methodology">
+          {["Signals for one manager are dated at that manager's filing date; quarter-wide signals (breadth, crowding) at the 45-day deadline, using only reports filed by then.",
+            "Position changes compare the same manager across consecutive quarters, with prior shares split-adjusted (a 10:1 split is not 'buying').",
+            "CUSIP → ticker candidates come from issuer-name matching and OpenFIGI; a candidate is accepted only if value ÷ shares matches the market close at ≥ 70% of quarter ends.",
+            "Values are normalised from thousands of dollars (pre-2023 filings) to dollars; amendments, put/call rows and non-share amounts are excluded.",
+            "13F reveals neither trade dates, shorts, hedges nor current holdings; results describe copying disclosed positions, not the managers' own returns."].map((t, i) =>
+            <div key={i} className="finding" style={{ gridTemplateColumns: "28px 1fr" }}><div className="n">{String(i + 1).padStart(2, "0")}</div><div className="b">{t}</div></div>)}
+        </Card>
+        <Card title="Crowd data sources">
+          {c.data ? <table className="t"><tbody>{Object.entries(c.data.sources_status).map(([k, v]) => (
+            <tr key={k}><td style={{ fontWeight: 600 }}>{k.replace("_", " ")}</td><td className="muted" style={{ whiteSpace: "normal" }}>{String(v)}</td></tr>))}</tbody></table>
+            : <div className="muted">Crowd study not yet run.</div>}
+          <div className="dim" style={{ marginTop: 10, fontSize: 11.5 }}>Wikipedia views for UTC day d are treated as public on d + 1. Attention spikes are not assumed bullish; their tests are two-sided unless the literature states a direction.</div>
+        </Card>
+      </div>
+    </Section>
   );
 }
