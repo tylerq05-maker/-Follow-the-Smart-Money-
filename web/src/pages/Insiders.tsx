@@ -108,7 +108,7 @@ function HeadlineStats({ d }: { d: Json }) {
   );
 }
 
-function Scoreboard({ d, keys, sel, setSel, sample }: { d: Json; keys: string[]; sel: string; setSel: (k: string) => void; sample: Sample }) {
+export function Scoreboard({ d, keys, sel, setSel, sample }: { d: Json; keys: string[]; sel: string; setSel: (k: string) => void; sample: Sample }) {
   const ff = (k: string) => d.portfolios[k]?.[sample]?.ff6;
   return (
     <div className="scroll" style={{ maxHeight: "none" }}>
@@ -151,7 +151,7 @@ function Scoreboard({ d, keys, sel, setSel, sample }: { d: Json; keys: string[];
   );
 }
 
-function Heatmap({ d, keys, sample }: { d: Json; keys: string[]; sample: Sample }) {
+export function Heatmap({ d, keys, sample }: { d: Json; keys: string[]; sample: Sample }) {
   const option = useMemo(() => {
     const names = keys.map((k) => d.event_study[k].meta.name);
     const data: [number, number, number, string][] = [];
@@ -173,7 +173,7 @@ function Heatmap({ d, keys, sample }: { d: Json; keys: string[]; sample: Sample 
   return <Chart option={option} height={46 + keys.length * 38} />;
 }
 
-function PathChart({ rows, dir }: { rows: Json[]; dir: number }) {
+export function PathChart({ rows, dir }: { rows: Json[]; dir: number }) {
   const option = useMemo(() => {
     const col = (dir >= 0 ? C.pos : C.neg);
     const x = rows.map((r) => r.day);
@@ -192,7 +192,7 @@ function PathChart({ rows, dir }: { rows: Json[]; dir: number }) {
   return <Chart option={option} />;
 }
 
-function PlaceboChart({ p }: { p: Json }) {
+export function PlaceboChart({ p }: { p: Json }) {
   const option = useMemo(() => {
     if (!p) return {};
     const draws: number[] = p.draws.filter(isNum);
@@ -222,7 +222,7 @@ function PlaceboChart({ p }: { p: Json }) {
   );
 }
 
-function CurveChart({ c }: { c: Json }) {
+export function CurveChart({ c }: { c: Json }) {
   const option = useMemo(() => !c ? {} : ({
     legend: { top: 0, right: 0, textStyle: { color: C.text }, icon: "roundRect", itemHeight: 3 },
     grid: { left: 52, right: 18, top: 30, bottom: 30 },
@@ -239,7 +239,7 @@ function CurveChart({ c }: { c: Json }) {
   return <Chart option={option} height={260} />;
 }
 
-function PortfolioCard({ p, sample }: { p: Json; sample: Sample }) {
+export function PortfolioCard({ p, sample }: { p: Json; sample: Sample }) {
   if (!p) return <Card title="Portfolio statistics"><div className="empty">No portfolio.</div></Card>;
   const s = p[sample];
   const f = s.ff6;
@@ -269,7 +269,7 @@ function PortfolioCard({ p, sample }: { p: Json; sample: Sample }) {
   );
 }
 
-function YearChart({ rows }: { rows: Json[] }) {
+export function YearChart({ rows }: { rows: Json[] }) {
   const option = useMemo(() => ({
     tooltip: { trigger: "axis", formatter: (ps: Json) => { const r = rows[ps[0].dataIndex]; return `${r.year}: mean ${pct(r.mean, 2)} · median ${pct(r.median, 2)} · n=${r.n}`; } },
     xAxis: { type: "category", data: rows.map((r) => r.year), ...axis({ splitLine: { show: false } }) },
@@ -279,7 +279,7 @@ function YearChart({ rows }: { rows: Json[] }) {
   return <Chart option={option} height={240} />;
 }
 
-function SkewCard({ es }: { es: Json }) {
+export function SkewCard({ es }: { es: Json }) {
   const k = es.skew;
   return (
     <Card title="Mean vs. typical outcome" desc="Small-cap event returns are right-skewed: a few large winners lift the mean.">
@@ -294,7 +294,7 @@ function SkewCard({ es }: { es: Json }) {
   );
 }
 
-function Robust({ es, all }: { es: Json; all: Json }) {
+export function Robust({ es, all }: { es: Json; all?: Json }) {
   const r = es.full["60"];
   const rows: [string, Json, Json][] = [
     ["Headline: investable, vs SPY", r.mean, r.t],
@@ -347,10 +347,14 @@ function Composite({ c }: { c: Json }) {
   );
 }
 
-function Grid({ rows }: { rows: Json[] }) {
+export function Grid({ rows }: { rows: Json[] }) {
   const params = Array.from(new Set(rows.map((r) => `${r.param}|${r.value}`)));
   const get = (k: string, s: string) => rows.find((r) => `${r.param}|${r.value}` === k && r.sample === s);
-  const lbl = (k: string) => { const [p, v] = k.split("|"); return p === "cluster_min_insiders" ? `≥ ${v} insiders in 30 days` : `purchase ≥ ${usd(+v)}`; };
+  const LBL: Record<string, (v: string) => string> = {
+    cluster_min_insiders: (v) => `≥ ${v} insiders in 30 days`, min_purchase_value: (v) => `purchase ≥ ${usd(+v)}`,
+    hf_crowd_min_buyers: (v) => `≥ ${v} concentrated managers buying (net)`, new_position_min_weight: (v) => `new position ≥ ${pct(+v, 0, false)} of portfolio`,
+  };
+  const lbl = (k: string) => { const [p, v] = k.split("|"); return (LBL[p] ?? ((x: string) => `${p} ${x}`))(v); };
   return (
     <table className="t"><thead><tr><th>Variant</th><th className="r">IS n</th><th className="r">IS mean</th><th className="r">IS t</th><th className="r">OOS n</th><th className="r">OOS mean</th><th className="r">OOS t</th></tr></thead>
       <tbody>{params.map((k) => { const a = get(k, "in_sample"), b = get(k, "out_of_sample"); return (

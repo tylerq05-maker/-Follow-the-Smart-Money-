@@ -5,6 +5,12 @@
     python -m smartmoney.pipeline reference   # CIK<->ticker map, company metadata
     python -m smartmoney.pipeline prices      # daily prices for the insider universe + benchmarks
     python -m smartmoney.pipeline insiders    # events, signals, forward returns, research results
+    python -m smartmoney.pipeline ingest13f   # SEC 13F data sets -> data/processed/f13_holdings
+    python -m smartmoney.pipeline build13f    # CUSIP mapping, manager classes, position changes
+    python -m smartmoney.pipeline institutions  # 13F research results
+    python -m smartmoney.pipeline wiki        # Wikidata ticker->article + daily Wikipedia pageviews
+    python -m smartmoney.pipeline crowd       # attention research results
+    python -m smartmoney.pipeline synthesis   # disagreement engine, lead-lag, cross-source scoreboard
     python -m smartmoney.pipeline all
 """
 from __future__ import annotations
@@ -66,14 +72,46 @@ def cmd_insiders(args) -> None:
     insider_study.run()
 
 
+def cmd_ingest13f(args) -> None:
+    from .sources import sec_13f
+    with ProcessPoolExecutor(args.workers) as ex:
+        for name, res in ex.map(sec_13f.ingest_one, sec_13f.list_files()):
+            log.info("13F %s -> %s", name, res)
+
+
+def cmd_build13f(args) -> None:
+    from .institutions import build
+    build.build()
+
+
+def cmd_institutions(args) -> None:
+    from .research import institution_study
+    institution_study.run()
+
+
+def cmd_wiki(args) -> None:
+    from .sources import wikipedia
+    wikipedia.build(workers=1)
+
+
+def cmd_crowd(args) -> None:
+    from .research import crowd_study
+    crowd_study.run()
+
+
+def cmd_synthesis(args) -> None:
+    from .research import synthesis
+    synthesis.run()
+
+
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("command", choices=["ingest", "signals", "reference", "prices", "insiders", "all"])
+    p.add_argument("command", choices=["ingest", "signals", "reference", "prices", "insiders", "ingest13f", "build13f", "institutions", "wiki", "crowd", "synthesis", "all"])
     p.add_argument("--workers", type=int, default=3)
     a = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     t = time.time()
-    steps = ["ingest", "signals", "reference", "prices", "insiders"] if a.command == "all" else [a.command]
+    steps = ["ingest", "signals", "reference", "prices", "insiders", "ingest13f", "build13f", "institutions", "wiki", "crowd", "synthesis"] if a.command == "all" else [a.command]
     for s in steps:
         globals()[f"cmd_{s}"](a)
     log.info("done in %.0fs", time.time() - t)

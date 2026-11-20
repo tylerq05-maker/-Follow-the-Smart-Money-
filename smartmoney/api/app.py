@@ -23,18 +23,40 @@ log = logging.getLogger(__name__)
 app = FastAPI(title="Follow the Smart Money? API", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
 RES = config.RESULTS / "insiders"
+MODULES = {"insiders", "institutions"}
 
 
-@lru_cache(maxsize=8)
-def _json(name: str, mtime: float):
-    return json.loads((RES / name).read_text())
+@lru_cache(maxsize=16)
+def _json(path: str, mtime: float):
+    return json.loads(open(path).read())
 
 
-def result(name: str):
-    p = RES / name
+def result(name: str, module: str = "insiders"):
+    p = config.RESULTS / module / name
     if not p.exists():
-        raise HTTPException(404, f"{name} not built. Run: python -m smartmoney.pipeline insiders")
-    return _json(name, p.stat().st_mtime)
+        raise HTTPException(404, f"{module}/{name} not built. Run: python -m smartmoney.pipeline {module}")
+    return _json(str(p), p.stat().st_mtime)
+
+
+@app.get("/api/institutions/{name}")
+def institutions_result(name: str):
+    if name not in {"summary", "paths", "curves"}:
+        raise HTTPException(404)
+    return result(f"{name}.json", "institutions")
+
+
+@app.get("/api/synthesis/{name}")
+def synthesis_result(name: str):
+    if name not in {"summary", "paths", "curves", "scoreboard"}:
+        raise HTTPException(404)
+    return result(f"{name}.json", "synthesis")
+
+
+@app.get("/api/crowd/{name}")
+def crowd_result(name: str):
+    if name not in {"summary", "paths", "curves"}:
+        raise HTTPException(404)
+    return result(f"{name}.json", "crowd")
 
 
 @app.get("/api/health")
@@ -62,7 +84,7 @@ def insiders_recent(limit: int = Query(60, le=300), signal: str | None = None):
     p = RES / "recent_signals.json"
     if not p.exists():
         raise HTTPException(404, "recent signals not built")
-    rows = _json("recent_signals.json", p.stat().st_mtime)
+    rows = _json(str(p), p.stat().st_mtime)
     if signal:
         rows = [r for r in rows if r["signal"] == signal]
     return rows[:limit]

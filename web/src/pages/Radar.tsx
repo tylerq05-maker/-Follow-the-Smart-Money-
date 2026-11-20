@@ -74,8 +74,8 @@ function Company({ d }: { d: Json }) {
       <Section title="Three groups · current read">
         <div className="grid g3">
           <InsiderRead ins={ins} />
-          <Pending name="Institutions" src="SEC Form 13F" phase={2} />
-          <Pending name="The crowd" src="Reddit · news · Google Trends · Wikipedia" phase={3} />
+          <InstRead inst={d.institutions} />
+          <CrowdRead c={d.crowd} />
         </div>
       </Section>
 
@@ -113,6 +113,8 @@ function Company({ d }: { d: Json }) {
           <Transactions rows={ins.recent} feed={ins.feed} />
         </Section>
       </>}
+      {d.institutions?.available && <InstSection inst={d.institutions} />}
+      {d.crowd?.available && <CrowdSection c={d.crowd} />}
       <div className="dim" style={{ marginTop: 18, fontSize: 11.5 }}>Sources: <a href={d.sources.sec_filings} target="_blank" rel="noreferrer">SEC EDGAR filings for CIK {o.cik}</a> · {d.sources.prices}. AI research summary arrives in Phase 6; every statement here is computed directly from filings.</div>
     </>
   );
@@ -122,7 +124,7 @@ function Kpi({ label, value, foot }: { label: string; value: React.ReactNode; fo
   return <div className="stat"><div className="label">{label}</div><div className="num" style={{ fontSize: 16, fontWeight: 600, marginTop: 4 }}>{value}</div>{foot && <div className="dim" style={{ fontSize: 11 }}>{foot}</div>}</div>;
 }
 
-function Pending({ name, src, phase }: { name: string; src: string; phase: number }) {
+export function Pending({ name, src, phase }: { name: string; src: string; phase: number }) {
   return (
     <Card title={name} desc={src} right={<span className="tag">Phase {phase}</span>}>
       <div className="muted">Not yet available. This source is added in Phase {phase}; no placeholder or simulated reading is shown.</div>
@@ -249,5 +251,111 @@ function Transactions({ rows, feed }: { rows: Json[]; feed: Json }) {
             <td><a href={r.accession_url} target="_blank" rel="noreferrer" className="mono" style={{ fontSize: 11 }}>{r.source === "edgar_live" ? "EDGAR·live" : "SEC"}</a></td></tr>);
         })}</tbody></table>{!shown.length && <div className="empty">No transactions for this filter.</div>}</div>
     </Card>
+  );
+}
+
+function InstRead({ inst }: { inst: Json }) {
+  if (!inst?.available || !inst.period) return <Card title="Institutions" desc="SEC Form 13F"><div className="muted">{inst?.reason ?? "No 13F holdings found."}</div></Card>;
+  const h: Json[] = inst.history;
+  const last = h[h.length - 1];
+  const buyers = (last?.c_new ?? 0) + (last?.c_incr ?? 0), sellers = (last?.c_exit ?? 0) + (last?.c_decr ?? 0);
+  const label = buyers - sellers >= 3 ? ["Hedge funds accumulating", "pos"] : sellers - buyers >= 3 ? ["Hedge funds distributing", "neg"] : ["Mixed / stable", ""];
+  return (
+    <Card title="Institutions" desc={`SEC Form 13F · quarter ended ${inst.period}`} right={<span className={`pill ${label[1]}`}>{label[0]}</span>}>
+      <div>{int(inst.n_holders)} managers reported {usd(inst.total_value)}. Breadth change {pct(last?.breadth_change, 2)} of managers; concentrated funds: {buyers} buying, {sellers} selling.</div>
+      <div className="dim" style={{ marginTop: 8, fontSize: 11.5 }}>Positions as of {inst.period}, disclosed up to {inst.last_filing}. 13F shows quarter-end snapshots only — not when trades happened, nor current holdings or shorts.</div>
+    </Card>
+  );
+}
+
+function InstSection({ inst }: { inst: Json }) {
+  const h: Json[] = inst.history;
+  const option = useMemo(() => ({
+    legend: { top: 0, right: 0, textStyle: { color: C.text } }, grid: { left: 56, right: 56, top: 30, bottom: 30 },
+    tooltip: { trigger: "axis" },
+    xAxis: { type: "category", data: h.map((r) => r.period), ...axis({ splitLine: { show: false } }) },
+    yAxis: [{ type: "value", name: "managers", ...axis() }, { type: "value", ...axis({ splitLine: { show: false } }) }],
+    series: [
+      { name: "13F holders", type: "line", data: h.map((r) => r.n_holders), symbol: "none", lineStyle: { color: C.blue, width: 2 } },
+      { name: "Concentrated buying", type: "bar", yAxisIndex: 1, stack: "c", data: h.map((r) => r.c_new + r.c_incr), itemStyle: { color: C.pos } },
+      { name: "Concentrated selling", type: "bar", yAxisIndex: 1, stack: "c", data: h.map((r) => -(r.c_exit + r.c_decr)), itemStyle: { color: C.neg } },
+    ],
+  }), [h]);
+  const st = (x: string) => <span className={`pill ${x === "new" || x === "increased" ? "pos" : x === "reduced" || x === "exited" ? "neg" : ""}`}>{x}</span>;
+  const tbl = (rows: Json[]) => (
+    <div className="scroll" style={{ maxHeight: 360 }}><table className="t"><thead><tr><th>Manager</th><th>Status</th><th className="r">Shares</th><th className="r">Δ shares</th><th className="r">Value</th><th className="r">Weight</th><th>Filed</th></tr></thead>
+      <tbody>{rows.map((r, i) => <tr key={i}><td style={{ fontWeight: 500 }}>{r.manager}{r.notable ? <span className="tag gold" style={{ marginLeft: 6 }}>notable</span> : null}</td><td>{st(r.status)}</td>
+        <td className="r num">{int(r.shares)}</td><td className={`r num ${tone(r.change)}`}>{r.status === "exited" ? "−100%" : pct(r.change, 0)}</td>
+        <td className="r num">{usd(r.value)}</td><td className="r num muted">{pct(r.weight, 1, false)}</td><td className="num dim">{r.filing_date ?? "—"}</td></tr>)}</tbody></table></div>);
+  return (
+    <>
+      <Section title="Institutional ownership (13F)">
+        <div className="grid g2">
+          <Card title="Holders and concentrated-fund activity by quarter" desc="Line: number of 13F managers holding. Bars: concentrated managers opening/adding (≥25%) vs. exiting/cutting.">
+            <Chart option={option} height={280} />
+          </Card>
+          <Card title={`Largest reported holders · ${inst.period}`} desc="Change vs. the same manager's previous quarter (split-adjusted shares).">{tbl(inst.top)}</Card>
+          <Card title="Concentrated managers changing position" desc={`Funds meeting the concentration rule that opened, added, cut or exited in ${inst.period}`}>
+            {inst.concentrated_moves?.length ? tbl(inst.concentrated_moves) : <div className="empty">No concentrated-manager changes.</div>}
+          </Card>
+          <Card title="Notable funds" desc="Fixed list of well-known managers (Berkshire, Pershing Square, Appaloosa, …)">
+            {inst.notable?.length ? tbl(inst.notable) : <div className="empty">No notable fund holds this stock.</div>}
+          </Card>
+        </div>
+      </Section>
+      {inst.signals?.length > 0 && <Section title="13F signal history">
+        <Card desc="Dated when public (filing date / 45-day deadline). Excess return vs SPY from next-day entry.">
+          <div className="scroll" style={{ maxHeight: 320 }}><table className="t"><thead><tr><th>Public</th><th>Quarter</th><th>Signal</th><th>Manager</th><th className="r">+20d</th><th className="r">+60d</th><th className="r">+180d</th></tr></thead>
+            <tbody>{inst.signals.map((r: Json, i: number) => <tr key={i}><td className="num muted">{r.filing_date}</td><td className="num dim">{r.period}</td>
+              <td><span className={`pill ${r.direction > 0 ? "pos" : r.direction < 0 ? "neg" : ""}`}>{r.signal_name}</span></td><td className="muted">{r.manager ?? "—"}</td>
+              {["exc_20", "exc_60", "exc_180"].map((k) => <td key={k} className={`r num ${tone(isNum(r[k]) ? r[k] * (r.direction || 1) : null)}`}>{pct(r[k], 1)}</td>)}</tr>)}</tbody></table></div>
+        </Card>
+      </Section>}
+    </>
+  );
+}
+
+function CrowdRead({ c }: { c: Json }) {
+  if (!c?.available) return <Card title="The crowd" desc="Wikipedia attention"><div className="muted">{c?.reason ?? "Not available."}</div></Card>;
+  const r = c.ratio_7d;
+  const label = r >= 3 ? ["Attention spike", "warn"] : r >= 1.5 ? ["Elevated attention", "warn"] : ["Normal attention", ""];
+  return (
+    <Card title="The crowd" desc={`Wikipedia · ${c.article.replace(/_/g, " ")}`} right={<span className={`pill ${label[1]}`}>{label[0]}</span>}>
+      <div>7-day average {int(c.avg_7d)} views/day vs. 60-day median {int(c.baseline_60d)} ({num(r, 1)}x). {c.spikes.length} spike day{c.spikes.length === 1 ? "" : "s"} in the last 2 years.</div>
+      <div className="dim" style={{ marginTop: 8, fontSize: 11.5 }}>Attention measures interest, not sentiment — historically spikes after rallies are tested for reversal, not treated as bullish. Reddit is unavailable from this environment (API blocked); no reading is substituted.</div>
+    </Card>
+  );
+}
+
+function CrowdSection({ c }: { c: Json }) {
+  const option = useMemo(() => {
+    const spk = new Set(c.spikes.map((x: Json) => x.date));
+    return {
+      legend: { top: 0, right: 0, textStyle: { color: C.text } }, grid: { left: 60, right: 16, top: 30, bottom: 50 },
+      tooltip: { trigger: "axis" }, dataZoom: [{ type: "inside" }, { type: "slider", height: 16, bottom: 6, borderColor: C.line }],
+      xAxis: { type: "category", data: c.series.dates, ...axis({ splitLine: { show: false } }) },
+      yAxis: { type: "log", ...axis() },
+      series: [
+        { name: "Daily views", type: "line", data: c.series.views.map((v: number) => Math.max(v, 1)), symbol: "none", lineStyle: { color: C.violet, width: 1.2 } },
+        { name: "60-day median", type: "line", data: c.series.baseline, symbol: "none", lineStyle: { color: C.gray, type: "dashed" } },
+        { name: "Spike", type: "scatter", symbolSize: 8, itemStyle: { color: C.gold },
+          data: c.series.dates.map((d: string, i: number) => (spk.has(d) ? c.series.views[i] : null)) },
+      ],
+    };
+  }, [c]);
+  return (
+    <Section title="Crowd attention (Wikipedia page views)">
+      <div className="grid g2">
+        <Card title="Daily page views, last 2 years" desc={`Gold: days ≥ 3x the trailing 60-day median. Data through ${c.last_day} (UTC).`}><Chart option={option} height={280} /></Card>
+        <Card title="Attention signal history" desc="Public the day after the UTC day; excess return vs SPY from next-day entry.">
+          {c.signals?.length ? <div className="scroll" style={{ maxHeight: 300 }}><table className="t"><thead><tr><th>Day</th><th>Signal</th><th className="r">Views</th><th className="r">x base</th><th className="r">Prior 5d</th><th className="r">+5d</th><th className="r">+20d</th><th className="r">+60d</th></tr></thead>
+            <tbody>{c.signals.map((r: Json, i: number) => <tr key={i}><td className="num muted">{r.day}</td>
+              <td><span className={`pill ${r.direction > 0 ? "pos" : r.direction < 0 ? "neg" : ""}`}>{r.signal_name}</span></td>
+              <td className="r num">{int(r.views)}</td><td className="r num">{num(r.ratio, 1)}</td><td className={`r num ${tone(r.prior_ret_5d)}`}>{pct(r.prior_ret_5d, 0)}</td>
+              {["exc_5", "exc_20", "exc_60"].map((k) => <td key={k} className={`r num ${tone(r[k])}`}>{pct(r[k], 1)}</td>)}</tr>)}</tbody></table></div>
+            : <div className="empty">No investable attention signals for this company.</div>}
+        </Card>
+      </div>
+    </Section>
   );
 }

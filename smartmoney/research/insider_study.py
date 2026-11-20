@@ -126,10 +126,35 @@ def attach_returns(events: pd.DataFrame, rec: pd.DataFrame, spy: R.Series, iwm: 
 
 
 # ------------------------------------------------------------ event study
-def event_study(se: pd.DataFrame) -> dict:
+def returns_for(events: pd.DataFrame, spy: R.Series, iwm: R.Series, data_end: np.datetime64,
+                date_col: str = "filing_date") -> pd.DataFrame:
+    """Forward returns + market features for any events with `yahoo_symbol` and a public date."""
+    parts = []
+    for sym, idx in events.groupby("yahoo_symbol").indices.items():
+        sub = events.iloc[idx]
+        s = R.Series.load(sym)
+        if s is None:
+            continue
+        o = R.event_returns(s, sub[date_col].values, spy, iwm, data_end)
+        parts.append(pd.DataFrame(o, index=sub.index))
+    ev = events.join(pd.concat(parts), how="left") if parts else events.copy()
+    ev["has_price"] = ev["has_price"].astype("boolean").fillna(False).astype(bool)
+    for h in H:
+        ev[f"trunc_{h}"] = ev[f"trunc_{h}"].astype("boolean").fillna(False).astype(bool)
+        ev[f"exc_{h}"] = ev[f"ret_{h}"] - ev[f"spy_{h}"]
+        ev[f"exc_iwm_{h}"] = ev[f"ret_{h}"] - ev[f"iwm_{h}"]
+        ev[f"exc_beta_{h}"] = ev[f"ret_{h}"] - ev["beta"].clip(-1, 4).fillna(1.0) * ev[f"spy_{h}"]
+    ev["investable"] = ev.has_price & (ev.raw_close_sig >= config.MIN_PRICE) & \
+        (ev.med_dvol20 >= config.MIN_MEDIAN_DOLLAR_VOLUME)
+    ev["month"] = ev[date_col].dt.to_period("M").astype(str)
+    ev["sample"] = np.where(ev[date_col] <= pd.Timestamp(config.IN_SAMPLE_END), "in_sample", "out_of_sample")
+    return ev
+
+
+def event_study(se: pd.DataFrame, registry: dict | None = None) -> dict:
     out, p_primary = {}, {}
     for key, g in se.groupby("signal"):
-        s = sg.SIGNAL_BY_KEY[key]
+        s = (registry or sg.SIGNAL_BY_KEY)[key]
         res = {}
         for sample, gg in (("full", g), ("in_sample", g[g["sample"] == "in_sample"]),
                            ("out_of_sample", g[g["sample"] == "out_of_sample"])):
@@ -207,7 +232,7 @@ def pass_two(se: pd.DataFrame, buy_events: pd.DataFrame, spy: R.Series):
     return paths, placebo, (pd.concat(port, ignore_index=True) if port else pd.DataFrame())
 
 
-def placebo_test(se: pd.DataFrame, placebo: np.ndarray) -> dict:
+def placebo_test(se: pd.DataFrame, placebo: np.ndarray, registry: dict | None = None) -> dict:
     out = {}
     for key, idx in se.reset_index(drop=True).groupby("signal").indices.items():
         real = se[f"exc_{PH}"].values[idx]
@@ -216,7 +241,7 @@ def placebo_test(se: pd.DataFrame, placebo: np.ndarray) -> dict:
         if ok.sum() < 20:
             continue
         rm, pm = real[ok].mean(), pl[ok].mean(0)
-        d = sg.SIGNAL_BY_KEY[key].direction
+        d = (registry or sg.SIGNAL_BY_KEY)[key].direction
         if d == 0:  # control group: two-sided test of 'no difference'
             p = (1 + (np.abs(pm - pm.mean()) >= abs(rm - pm.mean())).sum()) / (PLACEBO_K + 1)
         else:       # directional hypothesis: how often does random timing do at least as well?

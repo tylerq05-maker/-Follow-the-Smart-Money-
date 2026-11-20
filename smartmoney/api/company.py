@@ -161,7 +161,17 @@ def _company(ident: dict) -> dict:
                     market_cap=(shs * px["last_price"]) if shs and px.get("available") else None)
 
     tx, feed = transactions(cik)
-    return {"overview": overview, "price": px, "insiders": insider_block(tx, sym, feed),
+    try:
+        inst = institution_block(ident["ticker"])
+    except Exception as e:  # never let one source break the page
+        log.exception("institutions %s", ident["ticker"])
+        inst = {"available": False, "reason": str(e)[:200]}
+    try:
+        crowd = crowd_block(ident["ticker"])
+    except Exception as e:
+        log.exception("crowd %s", ident["ticker"])
+        crowd = {"available": False, "reason": str(e)[:200]}
+    return {"overview": overview, "price": px, "insiders": insider_block(tx, sym, feed), "institutions": inst, "crowd": crowd,
             "sources": {"sec_filings": f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK={cik}&type=4",
                         "prices": "Yahoo Finance daily chart API (split & dividend adjusted)"}}
 
@@ -243,3 +253,98 @@ def live_signals(tx: pd.DataFrame, sym: str) -> list[dict]:
     out["signal_name"] = out.signal.map(lambda k: sg.SIGNAL_BY_KEY[k].name)
     out["investable"] = (out.raw_close_sig >= config.MIN_PRICE) & (out.med_dvol20 >= config.MIN_MEDIAN_DOLLAR_VOLUME)
     return _records(out)
+
+
+# ------------------------------------------------------------------ institutions (Phase 2)
+@lru_cache(maxsize=1)
+def _f13():
+    from ..institutions import build as B
+    from ..research import institution_study as IS
+    if not B.STOCK_PATH.exists():
+        return None
+    return {"map": pd.read_parquet(B.MAP_PATH), "stock": pd.read_parquet(B.STOCK_PATH),
+            "recent": pd.read_parquet(B.RECENT_PATH),
+            "signals": pd.read_parquet(IS.SIGNAL_EVENTS_PATH) if IS.SIGNAL_EVENTS_PATH.exists() else pd.DataFrame(),
+            "names": {s.key: s.name for s in IS.SIGNALS}}
+
+
+def institution_block(ticker: str) -> dict:
+    d = _f13()
+    if d is None:
+        return {"available": False, "reason": "13F data not built"}
+    cus = d["map"].loc[d["map"].ticker == ticker.upper(), "cusip"].tolist()
+    if not cus:
+        return {"available": False, "reason": "No verified 13F CUSIP for this ticker"}
+    st = d["stock"][d["stock"].cusip.isin(cus)].groupby("period").agg(
+        n_holders=("n_holders", "sum"), inst_value=("inst_value", "sum"), breadth_change=("breadth_change", "sum"),
+        c_holders=("c_holders", "sum"), c_new=("c_new", "sum"), c_incr=("c_incr", "sum"), c_decr=("c_decr", "sum"),
+        c_exit=("c_exit", "sum"), n_new=("n_new", "sum"), n_exit=("n_exit", "sum"),
+        signal_date=("signal_date", "max")).reset_index().sort_values("period")
+    rec = d["recent"][d["recent"].cusip.isin(cus)]
+    out = {"available": True, "cusips": cus, "history": _records(st.tail(24))}
+    if len(rec):
+        periods = sorted(rec.period.unique())
+        last = periods[-1]
+        cur = rec[rec.period == last].groupby(["filer_cik", "manager"]).agg(
+            shares=("shares", "sum"), value=("value_usd", "sum"), aum=("aum", "first"), filing_date=("filing_date", "min"),
+            concentrated=("concentrated", "first"), notable=("notable", "first")).reset_index()
+        if len(periods) > 1:
+            prv = rec[rec.period == periods[-2]].groupby("filer_cik")["shares"].sum().rename("prev_shares")
+            cur = cur.merge(prv, on="filer_cik", how="left")
+            exits = rec[(rec.period == periods[-2]) & ~rec.filer_cik.isin(cur.filer_cik)].groupby(["filer_cik", "manager"]).agg(
+                prev_shares=("shares", "sum"), concentrated=("concentrated", "first"), notable=("notable", "first")).reset_index()
+        else:
+            cur["prev_shares"], exits = np.nan, pd.DataFrame()
+        cur["change"] = cur.shares / cur.prev_shares - 1
+        cur["status"] = np.where(cur.prev_shares.isna(), "new", np.where(cur.change >= 0.25, "increased",
+                                 np.where(cur.change <= -0.25, "reduced", "held")))
+        cur["weight"] = cur.value / cur.aum
+        cur = cur.sort_values("value", ascending=False)
+        out.update(period=str(pd.Timestamp(last).date()), last_filing=str(cur.filing_date.max().date()),
+                   n_holders=int(len(cur)), total_value=float(cur.value.sum()),
+                   top=_records(cur.head(20).drop(columns=["aum"])),
+                   notable=_records(pd.concat([cur[cur.notable], exits[exits.notable].assign(status="exited") if len(exits) else None])
+                                    .drop(columns=["aum"], errors="ignore")),
+                   concentrated_moves=_records(pd.concat([cur[cur.concentrated & (cur.status != "held")],
+                                                          exits[exits.concentrated].assign(status="exited") if len(exits) else None])
+                                               .sort_values("value", ascending=False, na_position="last").head(25).drop(columns=["aum"], errors="ignore")),
+                   n_exits=int(len(exits)), status_counts=cur.status.value_counts().to_dict())
+    sg_ = d["signals"]
+    if len(sg_):
+        s = sg_[sg_.cusip.isin(cus)].sort_values("filing_date", ascending=False).head(40)
+        s = s.assign(signal_name=s.signal.map(d["names"]))
+        out["signals"] = _records(s.reindex(columns=["signal", "signal_name", "direction", "period", "filing_date", "manager",
+                                                    "weight", "c_buyers", "c_sellers", "breadth_change", "exc_20", "exc_60", "exc_180"]))
+    return out
+
+
+# ------------------------------------------------------------------ crowd attention (Phase 3)
+def crowd_block(ticker: str) -> dict:
+    from ..research import crowd_study as CS
+    from ..sources import wikipedia
+    m = wikipedia.ticker_articles()
+    hit = m[m.ticker == ticker.upper()]
+    if hit.empty:
+        return {"available": False, "reason": "No unambiguous English Wikipedia article linked to this ticker in Wikidata"}
+    v = wikipedia.load(ticker.upper())
+    if v is None:
+        return {"available": False, "reason": "Page views not downloaded yet"}
+    s = v.set_index("date")["views"].asfreq("D").fillna(0)
+    base = s.shift(1).rolling(CS.BASE_DAYS, min_periods=40).median()
+    ratio = s / base.replace(0, np.nan)
+    w = pd.DataFrame({"views": s, "baseline": base, "ratio": ratio}).last("730D")
+    spikes = w[(w.ratio >= CS.SPIKE_RATIO) & (w.views >= CS.SPIKE_MIN_VIEWS)]
+    last7 = s.tail(7).mean()
+    out = {"available": True, "article": hit.iloc[0].title, "last_day": str(s.index[-1].date()),
+           "last_views": float(s.iloc[-1]), "avg_7d": float(last7), "baseline_60d": float(base.iloc[-1]),
+           "ratio_7d": float(last7 / base.iloc[-1]) if base.iloc[-1] else None,
+           "series": {"dates": [d.strftime("%Y-%m-%d") for d in w.index], "views": [float(x) for x in w.views],
+                      "baseline": [None if pd.isna(x) else float(x) for x in w.baseline]},
+           "spikes": _records(spikes.reset_index().rename(columns={"index": "date"}).tail(30))}
+    if CS.SIGNAL_EVENTS_PATH.exists():
+        se = pd.read_parquet(CS.SIGNAL_EVENTS_PATH, filters=[("ticker", "==", ticker.upper())])
+        names = {x.key: x.name for x in CS.SIGNALS}
+        se = se.sort_values("filing_date", ascending=False).head(30).assign(signal_name=lambda d: d.signal.map(names))
+        out["signals"] = _records(se.reindex(columns=["signal", "signal_name", "direction", "day", "filing_date", "views",
+                                                      "ratio", "prior_ret_5d", "exc_5", "exc_20", "exc_60"]))
+    return out

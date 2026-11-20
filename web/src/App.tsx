@@ -3,15 +3,9 @@ import Overview from "./pages/Overview";
 import Radar from "./pages/Radar";
 import Insiders from "./pages/Insiders";
 import Methodology from "./pages/Methodology";
-import Planned from "./pages/Planned";
-
-const PLANNED = [
-  { path: "institutions", label: "Institutional Holdings", phase: 2 },
-  { path: "crowd", label: "Crowd Sentiment", phase: 3 },
-  { path: "disagreement", label: "Disagreement Engine", phase: 5 },
-  { path: "lead-lag", label: "Who Moves First?", phase: 5 },
-  { path: "scoreboard", label: "Performance Scoreboard", phase: 5 },
-];
+import Institutions from "./pages/Institutions";
+import Crowd from "./pages/Crowd";
+import { Disagreement, LeadLag, PerfScoreboard } from "./pages/Synthesis";
 
 export default function App() {
   return (
@@ -27,13 +21,12 @@ export default function App() {
           <NavLink to="/radar">Smart Money Radar <span className="tag gold">Live</span></NavLink>
           <div className="nav-group">Sources</div>
           <NavLink to="/insiders">Insider Activity <span className="tag live">P1</span></NavLink>
-          {PLANNED.slice(0, 2).map((p) => (
-            <NavLink key={p.path} to={`/${p.path}`}>{p.label} <span className="tag">P{p.phase}</span></NavLink>
-          ))}
+          <NavLink to="/institutions">Institutional Holdings <span className="tag live">P2</span></NavLink>
+          <NavLink to="/crowd">Crowd Attention <span className="tag live">P3</span></NavLink>
           <div className="nav-group">Analytics</div>
-          {PLANNED.slice(2).map((p) => (
-            <NavLink key={p.path} to={`/${p.path}`}>{p.label} <span className="tag">P{p.phase}</span></NavLink>
-          ))}
+          <NavLink to="/disagreement">Disagreement Engine <span className="tag gold">P5</span></NavLink>
+          <NavLink to="/lead-lag">Who Moves First? <span className="tag gold">P5</span></NavLink>
+          <NavLink to="/scoreboard">Performance Scoreboard <span className="tag gold">P5</span></NavLink>
           <NavLink to="/methodology">Methodology &amp; Validation</NavLink>
         </nav>
       </aside>
@@ -44,7 +37,11 @@ export default function App() {
           <Route path="/radar/:ticker" element={<Radar />} />
           <Route path="/insiders" element={<Insiders />} />
           <Route path="/methodology" element={<Methodology />} />
-          {PLANNED.map((p) => <Route key={p.path} path={`/${p.path}`} element={<Planned label={p.label} phase={p.phase} />} />)}
+          <Route path="/institutions" element={<Institutions />} />
+          <Route path="/crowd" element={<Crowd />} />
+          <Route path="/disagreement" element={<Disagreement />} />
+          <Route path="/lead-lag" element={<LeadLag />} />
+          <Route path="/scoreboard" element={<PerfScoreboard />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>

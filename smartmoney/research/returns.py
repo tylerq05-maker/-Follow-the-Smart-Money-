@@ -66,7 +66,7 @@ def event_returns(s: Series, filing_dates: np.ndarray, spy: Series, iwm: Series,
     ok = (i_sig >= 0) & (i0 < n)
     ok[ok] &= (s.dates[i0[ok]] - fd[ok]) <= np.timedelta64(7, "D")      # trading resumed promptly
     ok[ok] &= (fd[ok] - s.dates[i_sig[ok]]) <= np.timedelta64(7, "D")   # stock was trading at the filing
-    o = {k: np.full(m, np.nan) for k in ["raw_close_sig", "med_dvol20", "prior_ret_20d", "prior_ret_60d",
+    o = {k: np.full(m, np.nan) for k in ["raw_close_sig", "med_dvol20", "prior_ret_5d", "prior_ret_20d", "prior_ret_60d",
                                          "prior_ret_250d", "beta"]}
     o["has_price"] = ok
     o["sig_date"] = np.full(m, np.datetime64("NaT", "D"), "datetime64[D]")
@@ -82,7 +82,7 @@ def event_returns(s: Series, filing_dates: np.ndarray, spy: Series, iwm: Series,
     o["sig_date"][idx], o["entry_date"][idx] = s.dates[sg], s.dates[e0]
     o["raw_close_sig"][idx] = s.raw[sg]
     o["med_dvol20"][idx] = [np.median(s.dvol[max(0, k - 19):k + 1]) if k >= 9 else np.nan for k in sg]
-    for lb in (20, 60, 250):
+    for lb in (5, 20, 60, 250):
         v = np.full(len(idx), np.nan)
         hit = sg >= lb
         v[hit] = s.adj[sg[hit]] / s.adj[sg[hit] - lb] - 1
