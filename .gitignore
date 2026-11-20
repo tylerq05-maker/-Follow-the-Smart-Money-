@@ -20,3 +20,4 @@ data/cache/
 web/node_modules/
 web/dist/
 *.log
+web/tsconfig.tsbuildinfo

@@ -149,7 +149,7 @@ def build_cusip_map(con, use_openfigi: bool = True) -> pd.DataFrame:
                & (agg.max_holders >= 20)]
     log.info("name-matched %d of %d cusips; OpenFIGI lookups: %d", (agg.name_candidates.str.len() > 0).sum(), len(agg), len(need))
     figi = _openfigi(need.index.tolist()) if use_openfigi else {}
-    agg["figi_ticker"] = agg.index.map(lambda c: figi.get(c))
+    agg["figi_ticker"] = [t if isinstance(t, str) and t else None for t in agg.index.map(lambda c: figi.get(c))]
     obs_by = obs.groupby("cusip")
     rows = []
     fetch = set()
