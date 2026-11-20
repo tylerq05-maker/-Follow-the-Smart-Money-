@@ -81,6 +81,10 @@ def role_bucket(r) -> str:
 def classify(tx: pd.DataFrame) -> pd.DataFrame:
     """Add role, value, quality class and exclusion reason to transactions."""
     df = tx.copy()
+    for c in ("is_director", "is_officer", "is_ten_pct", "is_other", "equity_swap", "direct", "aff10b5one",
+              "filing_plan_mention", "fn_plan", "fn_drip", "fn_espp", "fn_offering"):
+        if c in df.columns:  # live + bulk concatenation can leave object/NA dtypes
+            df[c] = df[c].astype("boolean").fillna(False).astype(bool)
     titles = df["officer_title"].fillna("")
     uniq = pd.Series(titles.unique())
     parsed = pd.DataFrame([parse_title(x) for x in uniq], index=uniq)

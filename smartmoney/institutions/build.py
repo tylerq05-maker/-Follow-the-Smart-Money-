@@ -33,6 +33,10 @@ FIGI_CACHE = config.CACHE / "openfigi.json"
 CONC_MAX_POSITIONS = 150
 CONC_MIN_TOP10 = 0.50
 CONC_MIN_AUM = 1e8
+CONC_MIN_POSITIONS = 10
+CONC_MAX_ETF_SHARE = 0.20
+ETF_PATTERN = ("ETF|ISHARES|SPDR|VANGUARD|INVESCO QQQ|SELECT SECTOR|INDEX FD|TRUST UNIT|PROSHARES|WISDOMTREE|"
+               "SCHWAB STRATEGIC|J P MORGAN EXCHANGE|DIMENSIONAL ETF")
 BIG_CHANGE = 0.25
 MIN_ISSUER_HOLDERS = 10  # CUSIPs ever held by >= this many managers are mapped
 
@@ -61,6 +65,8 @@ def build_filings(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
                count(*) n_positions, sum(value_usd) aum
         FROM read_parquet('{sec_13f.glob()}') GROUP BY accession, filer_cik""").df()
     f = f[f.period.notna() & f.filing_date.notna()]
+    # A handful of reports carry impossible periods (e.g. 1987, or after the filing date): data-entry errors.
+    f = f[(f.period >= pd.Timestamp("2013-01-01")) & (f.period <= f.filing_date + pd.Timedelta(days=1))]
     f["period"] = f["period"] + pd.offsets.QuarterEnd(0)  # normalise odd period dates to quarter end
     f["deadline"] = deadline(f["period"])
     f["on_time"] = f["filing_date"] <= f["deadline"]
@@ -139,6 +145,7 @@ def build_cusip_map(con, use_openfigi: bool = True) -> pd.DataFrame:
     agg = agg[(agg.max_holders >= MIN_ISSUER_HOLDERS)
               & ~agg.title.fillna("").str.upper().str.contains(r"PFD|PREF|NOTE|WARRANT|WT|DEBT|BOND|RIGHT|UNIT|CALL|PUT|ETF|TR UNIT")]
     sec = sec_reference.sec_ticker_table()
+    sec = sec[sec["ticker"].map(lambda t: isinstance(t, str) and t != "")]
     sec["norm"] = sec["name"].map(norm_name)
     by_name = sec.groupby("norm")["ticker"].apply(list).to_dict()
     agg["norm"] = agg["issuer_name"].map(norm_name)
@@ -155,7 +162,8 @@ def build_cusip_map(con, use_openfigi: bool = True) -> pd.DataFrame:
     fetch = set()
     for c, r in agg.iterrows():
         for t in list(r.name_candidates) + ([r.figi_ticker] if r.figi_ticker else []):
-            fetch.add(sec_reference.yahoo_symbol(t))
+            if isinstance(t, str) and t:
+                fetch.add(sec_reference.yahoo_symbol(t))
     missing = [s for s in fetch if not prices.path(s).exists()]
     log.info("cusip map: %d cusips, fetching %d new price series", len(agg), len(missing))
     if missing:
@@ -164,7 +172,8 @@ def build_cusip_map(con, use_openfigi: bool = True) -> pd.DataFrame:
     for c, r in agg.iterrows():
         o = obs_by.get_group(c)
         best = (None, 0, 0.0, "unmapped")
-        cands = [(t, "name") for t in r.name_candidates] + ([(r.figi_ticker, "openfigi")] if r.figi_ticker else [])
+        cands = [(t, "name") for t in r.name_candidates] + [(r.figi_ticker, "openfigi")]
+        cands = [(t, how) for t, how in cands if isinstance(t, str) and t]
         for t, how in cands:
             n, share = _price_score(sec_reference.yahoo_symbol(t), o)
             if n >= 2 and share >= 0.7 and (share, n) > (best[2], best[1]):
@@ -202,11 +211,11 @@ def split_factors(m: pd.DataFrame, periods: list[pd.Timestamp]) -> pd.DataFrame:
 
 
 # ------------------------------------------------------------------ main build
-def build() -> None:
+def build(reuse_map: bool = False) -> None:
     con = duckdb.connect()
-    con.execute("SET memory_limit='9GB'; SET threads=4")
+    con.execute("SET memory_limit='6GB'; SET threads=4")
     f = build_filings(con)
-    m = build_cusip_map(con)
+    m = pd.read_parquet(MAP_PATH) if (reuse_map and MAP_PATH.exists()) else build_cusip_map(con)
     mapped = m.dropna(subset=["yahoo_symbol"])[["cusip", "yahoo_symbol", "issuer_cik"]]
     fk = f[~f.dup][["accession", "filer_cik", "manager", "filing_date", "period", "deadline", "on_time", "aum", "n_positions"]]
     con.register("fk", fk)
@@ -215,10 +224,17 @@ def build() -> None:
     mg = con.execute(f"""
         WITH h AS (SELECT h.accession, h.value_usd,
                           row_number() OVER (PARTITION BY h.accession ORDER BY h.value_usd DESC) rk
-                   FROM read_parquet('{sec_13f.glob()}') h JOIN fk USING (accession))
-        SELECT fk.*, sum(CASE WHEN rk <= 10 THEN h.value_usd ELSE 0 END) / nullif(fk.aum, 0) top10
-        FROM fk JOIN h USING (accession) GROUP BY ALL""").df()
-    mg["concentrated"] = (mg.aum >= CONC_MIN_AUM) & (mg.n_positions <= CONC_MAX_POSITIONS) & (mg.top10 >= CONC_MIN_TOP10)
+                   FROM read_parquet('{sec_13f.glob()}') h JOIN fk USING (accession)),
+             t AS (SELECT accession, sum(value_usd) top10_value FROM h WHERE rk <= 10 GROUP BY accession),
+             e AS (SELECT accession, sum(value_usd) FILTER (WHERE regexp_matches(upper(issuer_name || ' ' || coalesce(title, '')),
+                          '{ETF_PATTERN}')) etf_value
+                   FROM read_parquet('{sec_13f.glob()}') JOIN fk USING (accession) GROUP BY accession)
+        SELECT fk.*, t.top10_value / nullif(fk.aum, 0) top10, coalesce(e.etf_value, 0) / nullif(fk.aum, 0) etf_share
+        FROM fk JOIN t USING (accession) LEFT JOIN e USING (accession)""").df()
+    # 'Hedge-fund-like' = concentrated, active stock picker. ETF-heavy advisers (whose top-10 are index funds)
+    # and strategic single-stock holders (foundations, corporate stakes) are excluded.
+    mg["concentrated"] = ((mg.aum >= CONC_MIN_AUM) & mg.n_positions.between(CONC_MIN_POSITIONS, CONC_MAX_POSITIONS)
+                          & (mg.top10 >= CONC_MIN_TOP10) & (mg.etf_share < CONC_MAX_ETF_SHARE))
     mg["notable"] = mg.filer_cik.isin(list(NOTABLE))
     mg.to_parquet(MGR_PATH, index=False)
     log.info("managers: %d manager-periods, %.1f%% concentrated", len(mg), 100 * mg.concentrated.mean())
@@ -249,10 +265,10 @@ def build() -> None:
     # Restrict change metrics to managers that filed (on time) in both quarters.
     mgp = mg[mg.on_time][["filer_cik", "period"]].copy()
     both = mgp.merge(mgp.assign(period=mgp.period + pd.offsets.QuarterEnd(1)), on=["filer_cik", "period"])
-    con.register("both", both)
+    con.register("filed_both", both)
     stock = con.execute("""
         WITH p AS (SELECT pairs.*, last_day(period_raw) period FROM pairs),
-        b AS (SELECT p.* FROM p JOIN both USING (filer_cik, period)),
+        b AS (SELECT p.* FROM p JOIN filed_both USING (filer_cik, period)),
         cls AS (SELECT *, CASE WHEN prev_shares IS NULL OR prev_shares = 0 THEN 'new'
                                WHEN shares IS NULL THEN 'exit'
                                WHEN shares / prev_shares - 1 >= 0.25 THEN 'incr'
@@ -284,7 +300,7 @@ def build() -> None:
     ev = con.execute("""
         SELECT p.filer_cik, last_day(p.period_raw) period, p.cusip, p.filing_date, p.value_usd / nullif(p.aum, 0) weight,
                p.concentrated, p.notable
-        FROM pairs p JOIN both b ON b.filer_cik = p.filer_cik AND b.period = last_day(p.period_raw)
+        FROM pairs p JOIN filed_both b ON b.filer_cik = p.filer_cik AND b.period = last_day(p.period_raw)
         WHERE (p.prev_shares IS NULL OR p.prev_shares = 0) AND p.shares > 0 AND (p.concentrated OR p.notable)""").df()
     ev = ev.merge(mapped, on="cusip").merge(mg[["filer_cik", "period", "manager"]], on=["filer_cik", "period"], how="left")
     ev.to_parquet(MGR_EVENTS_PATH, index=False)

@@ -81,7 +81,8 @@ def build_signals(st: pd.DataFrame, mev: pd.DataFrame) -> pd.DataFrame:
     out.append(base[(base.c_buyers >= 3) & (net >= 3)].assign(signal="HF_CROWD_BUY"))
     out.append(base[(base.c_sellers >= 3) & (-net >= 3)].assign(signal="HF_CROWD_SELL"))
     out.append(base[(base.c_growth >= 0.10) & (base.c_growth_prev >= 0.10) & (base.c_holders >= 2)].assign(signal="HF_ACCUM_2Q"))
-    m = mev[mev.investable & (mev.filing_date >= config.EVENT_START)]
+    # A holdings report filed on (or before) its own quarter-end date is a data anomaly (4 of ~300k filings): excluded.
+    m = mev[mev.investable & (mev.filing_date >= config.EVENT_START) & (mev.filing_date > mev.period)]
     for key, mask in (("HF_NEW_CONVICTION", m.concentrated & (m.weight >= 0.03)), ("NOTABLE_NEW", m.notable & (m.weight >= 0.01))):
         e = m[mask].sort_values("filing_date")
         e = e[apply_cooldown(e["filing_date"], e["issuer_cik"])]
@@ -97,7 +98,7 @@ def robustness(st: pd.DataFrame, mev: pd.DataFrame) -> list[dict]:
     base = st[st.investable & (st.n_prev_both >= MIN_PREV_HOLDERS) & (st.filing_date >= config.EVENT_START)]
     net = base.c_buyers - base.c_sellers
     variants = [("hf_crowd_min_buyers", k, base[(base.c_buyers >= k) & (net >= k)]) for k in (2, 3, 4, 5)]
-    m = mev[mev.investable & mev.concentrated & (mev.filing_date >= config.EVENT_START)]
+    m = mev[mev.investable & mev.concentrated & (mev.filing_date >= config.EVENT_START) & (mev.filing_date > mev.period)]
     for w in (0.01, 0.03, 0.05, 0.10):
         e = m[m.weight >= w].sort_values("filing_date")
         variants.append(("new_position_min_weight", w, e[apply_cooldown(e["filing_date"], e["issuer_cik"])]))
@@ -167,7 +168,7 @@ def run() -> None:
                    "min_median_dollar_volume": config.MIN_MEDIAN_DOLLAR_VOLUME, "portfolio_hold_days": E.PORT_HOLD,
                    "cost_tiers_bps": config.COST_TIERS, "placebo_draws": E.PLACEBO_K, "cooldown_days": config.SIGNAL_COOLDOWN_DAYS,
                    "price_data_end": str(data_end), "factor_data_end": str(ff.index.max().date()),
-                   "concentrated_rule": {"max_positions": B.CONC_MAX_POSITIONS, "min_top10_weight": B.CONC_MIN_TOP10,
+                   "concentrated_rule": {"min_positions": B.CONC_MIN_POSITIONS, "max_etf_share": B.CONC_MAX_ETF_SHARE, "max_positions": B.CONC_MAX_POSITIONS, "min_top10_weight": B.CONC_MIN_TOP10,
                                          "min_aum": B.CONC_MIN_AUM}, "min_prev_holders": MIN_PREV_HOLDERS},
         "signals": [{"key": s.key, "name": s.name, "direction": s.direction, "definition": s.definition,
                      "rationale": s.rationale} for s in SIGNALS],

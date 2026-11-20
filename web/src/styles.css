@@ -13,7 +13,7 @@ a:hover { text-decoration: underline; }
 .num, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .pos { color: var(--pos); } .neg { color: var(--neg); } .muted { color: var(--text-2); } .dim { color: var(--text-3); }
 
-.shell { display: grid; grid-template-columns: 232px 1fr; min-height: 100%; background: linear-gradient(to right, var(--bg-2) 232px, var(--bg) 232px); }
+.shell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100%; background: linear-gradient(to right, var(--bg-2) 232px, var(--bg) 232px); }
 .side { background: var(--bg-2); border-right: 1px solid var(--line); padding: 18px 12px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
 .brand { padding: 4px 10px 18px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
 .brand-title { font-weight: 700; letter-spacing: .02em; font-size: 15px; }

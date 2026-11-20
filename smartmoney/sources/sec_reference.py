@@ -24,7 +24,9 @@ FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
 REF_PATH = config.PROCESSED / "issuer_symbols.parquet"
 
 
-def yahoo_symbol(sym: str) -> str:
+def yahoo_symbol(sym: str) -> str | None:
+    if not isinstance(sym, str) or not sym.strip():
+        return None
     return sym.strip().upper().replace(".", "-").replace("/", "-")
 
 

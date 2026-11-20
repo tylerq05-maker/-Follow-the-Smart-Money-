@@ -332,7 +332,8 @@ def crowd_block(ticker: str) -> dict:
     s = v.set_index("date")["views"].asfreq("D").fillna(0)
     base = s.shift(1).rolling(CS.BASE_DAYS, min_periods=40).median()
     ratio = s / base.replace(0, np.nan)
-    w = pd.DataFrame({"views": s, "baseline": base, "ratio": ratio}).last("730D")
+    w = pd.DataFrame({"views": s, "baseline": base, "ratio": ratio})
+    w = w[w.index > w.index[-1] - pd.Timedelta(days=730)]
     spikes = w[(w.ratio >= CS.SPIKE_RATIO) & (w.views >= CS.SPIKE_MIN_VIEWS)]
     last7 = s.tail(7).mean()
     out = {"available": True, "article": hit.iloc[0].title, "last_day": str(s.index[-1].date()),
